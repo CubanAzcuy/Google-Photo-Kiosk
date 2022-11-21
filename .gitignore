@@ -80,3 +80,15 @@ lint/generated/
 lint/outputs/
 lint/tmp/
 # lint/reports/
+
+Android/.idea/
+
+Android/app/google-services.json
+
+Android/gradlew
+
+Android/gradlew.bat
+
+Android/gradle/wrapper/gradle-wrapper.jar
+
+.DS_Store
