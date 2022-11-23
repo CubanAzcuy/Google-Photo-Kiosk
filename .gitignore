@@ -92,3 +92,13 @@ Android/gradlew.bat
 Android/gradle/wrapper/gradle-wrapper.jar
 
 .DS_Store
+
+gphoto-gradle/.idea/
+
+gphoto-gradle/gradlew.bat
+
+gphoto-gradle/gradlew
+
+gphoto-gradle/gradle/wrapper/gradle-wrapper.jar
+
+gphoto-gradle/gradle/wrapper/gradle-wrapper.properties
