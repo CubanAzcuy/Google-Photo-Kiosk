@@ -1,4 +1,4 @@
-package gives.robert.kiosk.gphotos.features
+package gives.robert.kiosk.gphotos.utils
 
 import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignIn

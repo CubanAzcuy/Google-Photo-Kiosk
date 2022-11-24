@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'kotlinx-serialization'
 }
 apply from: 'properties.gradle'
 
@@ -25,10 +26,14 @@ android {
         debug {
             buildConfigField "String", "GOOGLE_OAUTH_CLIENT_ID", "\"${client_id}\""
             buildConfigField "String", "GOOGLE_OAUTH_CLIENT_SECRET", "\"${client_secret}\""
+            buildConfigField "String", "AUTH_SERVER_IP", "\"${local_ip}\""
+            buildConfigField "String", "TEST_ALBUM", "\"${test_album}\""
         }
         release {
             buildConfigField "String", "GOOGLE_OAUTH_CLIENT_ID", "\"${client_id}\""
             buildConfigField "String", "GOOGLE_OAUTH_CLIENT_SECRET", "\"${client_secret}\""
+            buildConfigField "String", "AUTH_SERVER_IP", "\"${local_ip}\""
+            buildConfigField "String", "TEST_ALBUM", "\"${test_album}\""
 
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -74,7 +79,11 @@ dependencies {
 
     implementation 'com.google.android.gms:play-services-auth:20.4.0'
 
-    implementation 'com.squareup.okhttp:okhttp:2.7.4'
+    implementation 'io.ktor:ktor-client-android:1.5.0'
+    implementation 'io.ktor:ktor-client-serialization:1.5.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1'
+    implementation 'io.ktor:ktor-client-logging-jvm:1.5.0'
+    implementation 'io.ktor:ktor-client-cio:1.2.2'
 
     testImplementation 'junit:junit:4.13.2'
 

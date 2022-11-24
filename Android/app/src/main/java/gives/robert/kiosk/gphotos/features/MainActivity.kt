@@ -21,6 +21,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +30,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.lifecycleScope
+import coil.Coil
+import coil.ImageLoader
 import coil.compose.SubcomposeAsyncImage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -35,28 +39,28 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.tasks.Task
 import gives.robert.kiosk.gphotos.BuildConfig
-import gives.robert.kiosk.gphotos.features.data.PhotoKioskEffect
 import gives.robert.kiosk.gphotos.features.data.PhotoKioskEvents
+import gives.robert.kiosk.gphotos.features.data.PhotoKioskState
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
+import gives.robert.kiosk.gphotos.utils.GoogleSignInUtil
+import gives.robert.kiosk.gphotos.utils.ImageLoaderProvider
 
 class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedListener {
 
     private lateinit var googleSignInUtil: GoogleSignInUtil
     private lateinit var presenter: Presenter
+    private lateinit var imageLoader: ImageLoader
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        presenter = Presenter()
+        imageLoader = ImageLoaderProvider.newImageLoader(this)
+        Coil.setImageLoader(imageLoader)
+
+        presenter = Presenter(BuildConfig.AUTH_SERVER_IP, BuildConfig.TEST_ALBUM)
         googleSignInUtil = GoogleSignInUtil(this, BuildConfig.GOOGLE_OAUTH_CLIENT_ID)
         requestServerAuthToken(googleSignInUtil.requestServerAuthTokenIntent)
-
-        lifecycleScope.launchWhenCreated {
-            presenter.effectFlow.collect { effect ->
-                when(effect) {
-                    else -> {}
-                }
-            }
-        }
+        observeEffects()
 
         setContent {
             MyApplicationTheme {
@@ -64,14 +68,30 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    GooglePhotoView()
+                    val state = presenter.stateFlow.collectAsState()
+                    GooglePhotoView(state)
+                }
+            }
+        }
+    }
+
+    private fun observeEffects() {
+        lifecycleScope.launchWhenStarted {
+            presenter.effectFlow.collect { effect ->
+                when (effect) {
+                    else -> {
+
+                    }
                 }
             }
         }
     }
 
     private fun requestServerAuthToken(requestServerAuthTokenIntent: Intent) {
-        startActivityForResult(requestServerAuthTokenIntent, GoogleSignInUtil.attemptSignInRequestCode)
+        startActivityForResult(
+            requestServerAuthTokenIntent,
+            GoogleSignInUtil.attemptSignInRequestCode
+        )
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -79,7 +99,7 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
         if (requestCode == GoogleSignInUtil.attemptSignInRequestCode) {
             val task: Task<GoogleSignInAccount> = GoogleSignIn.getSignedInAccountFromIntent(data)
             if (task.isSuccessful) {
-                presenter.processEvent(PhotoKioskEvents.TokenFetched(this, task.result))
+                presenter.processEvent(PhotoKioskEvents.TokenFetched(task.result))
             } else {
                 //TODO:
             }
@@ -93,7 +113,8 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
 
     override fun onResume() {
         super.onResume()
-        checkLocation()
+//        presenter.processEvent(PhotoKioskEvents.GetPhotos)
+//        checkLocation()
     }
 
     private fun setFullScreen() {
@@ -139,14 +160,16 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GooglePhotoView() {
-    val state = rememberLazyListState()
+fun GooglePhotoView(photoKioskStateHolder: State<PhotoKioskState>) {
+    val scrollViewState = rememberLazyListState()
+
+    val photoKioskState = photoKioskStateHolder.value
 
     LazyRow(
-        state = state,
+        state = scrollViewState,
         modifier = Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        flingBehavior = rememberSnapFlingBehavior(lazyListState = state)
+        flingBehavior = rememberSnapFlingBehavior(lazyListState = scrollViewState)
     ) {
         items(
             count = Int.MAX_VALUE,
@@ -157,14 +180,22 @@ fun GooglePhotoView() {
                         .background(color = Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
-                    SubcomposeAsyncImage(
-                        model = "https://www.computerhope.com/jargon/u/url.png",
-                        modifier = Modifier.fillParentMaxSize(),
-                        loading = {
-                            CircularProgressIndicator()
-                        },
-                        contentDescription = "stringResource(R.string.description)"
-                    )
+                    if (photoKioskState.photoUrls.isNotEmpty()) {
+                        val index = (0 until photoKioskState.photoUrls.size).random()
+                        val url = photoKioskState.photoUrls[index].first
+
+                        SubcomposeAsyncImage(
+                            model = url,
+                            modifier = Modifier.fillParentMaxSize(),
+                            loading = {
+                                CircularProgressIndicator()
+                            },
+                            onError = {
+                                val sdfasdfsda = ""
+                            },
+                            contentDescription = "stringResource(R.string.description)"
+                        )
+                    }
                 }
             }
         )
@@ -175,6 +206,6 @@ fun GooglePhotoView() {
 @Composable
 fun DefaultPreview() {
     MyApplicationTheme {
-        GooglePhotoView()
+        GooglePhotoView(null!!)
     }
 }

@@ -1,21 +1,20 @@
 package gives.robert.kiosk.gphotos.features
 
-import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import gives.robert.kiosk.gphotos.features.data.PhotoKioskEffect
 import gives.robert.kiosk.gphotos.features.data.PhotoKioskEvents
 import gives.robert.kiosk.gphotos.features.data.PhotoKioskState
+import gives.robert.kiosk.gphotos.networking.GooglePhotoRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.produceIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
-class Presenter {
+class Presenter(localIp: String, val testAlbum: String) {
+
+    private val repo = GooglePhotoRepository(localIp)
 
     private val eventFlowScope = CoroutineScope(Dispatchers.IO)
     private val launchScope = CoroutineScope(Dispatchers.IO)
@@ -40,13 +39,29 @@ class Presenter {
     private suspend fun handleEvent(event: PhotoKioskEvents) {
         when(event) {
             is PhotoKioskEvents.TokenFetched -> {
-                processToken(event.context, event.googleAccount)
+                processToken(event.googleAccount)
+            }
+            PhotoKioskEvents.GetPhotos -> {
+                buildPhotoList()
             }
         }
     }
     
-    private fun processToken(context: Context, acct: GoogleSignInAccount) {
+    private suspend fun processToken(acct: GoogleSignInAccount) {
         val serverAuthCode = acct.serverAuthCode ?: return
-        val asfasdf = ""
+        repo.authenticate(serverAuthCode)
+        buildPhotoList()
+    }
+
+    private suspend fun buildPhotoList() {
+        val asdfasdf = repo.fetchPhotos(setOf(testAlbum))
+
+        val asdfffasdf = asdfasdf.associate {
+            it.id to Pair("${it.baseUrl}=d", it.mimeType)
+        }
+
+        stateFlow.update {
+            it.copy(photoUrls = asdfffasdf.values.toList())
+        }
     }
 }
