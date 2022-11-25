@@ -1,4 +1,4 @@
-package gives.robert.kiosk.gphotos.networking.models
+package gives.robert.kiosk.gphotos.features.display.networking.models
 
 import kotlinx.serialization.Serializable
 

@@ -79,6 +79,9 @@ dependencies {
 
     implementation 'com.google.android.gms:play-services-auth:20.4.0'
 
+    api "androidx.datastore:datastore-preferences-core:1.1.0-dev01"
+    api "androidx.datastore:datastore-core-okio:1.1.0-dev01"
+
     implementation 'io.ktor:ktor-client-android:1.5.0'
     implementation 'io.ktor:ktor-client-serialization:1.5.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1'
