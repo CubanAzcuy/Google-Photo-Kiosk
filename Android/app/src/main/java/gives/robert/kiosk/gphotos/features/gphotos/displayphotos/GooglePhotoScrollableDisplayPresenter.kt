@@ -24,6 +24,9 @@ class GooglePhotoScrollableDisplayPresenter(
             DisplayPhotoEvents.GetPhotos -> {
                 buildPhotoList()
             }
+            is DisplayPhotoEvents.ScrolledBack -> {
+                onScrolledBack(event.currentIndex)
+            }
         }
     }
 
@@ -39,13 +42,30 @@ class GooglePhotoScrollableDisplayPresenter(
             it.copy(photoUrls = photoUrlList)
         }
 
-        job?.cancel()
+        onClear()
+        startTimerJob()
+    }
+
+    private suspend fun onScrolledBack(currentIndex: Int) {
+        onClear()
+        delay(TimeUnit.SECONDS.toMillis(5))
+        stateFlow.update {
+            it.copy(
+                photoUrls = it.photoUrls,
+                currentIndex = currentIndex + 1
+            )
+        }
+        startTimerJob()
+    }
+
+    fun startTimerJob() {
         job = infiniteScope.launch {
             while (true) {
                 delay(TimeUnit.SECONDS.toMillis(5))
+                //TODO no copy
                 stateFlow.update {
                     it.copy(
-                        photoUrls = photoUrlList,
+                        photoUrls = it.photoUrls,
                         currentIndex = it.currentIndex + 1
                     )
                 }

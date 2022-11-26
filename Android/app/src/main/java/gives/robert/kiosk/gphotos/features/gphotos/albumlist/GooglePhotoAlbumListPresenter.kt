@@ -5,6 +5,7 @@ import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbum
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEvents
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumState
 import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.networking.models.Albums
 import gives.robert.kiosk.gphotos.utils.BasePresenter
 import gives.robert.kiosk.gphotos.utils.UserPreferences
 import kotlinx.coroutines.flow.update
@@ -30,10 +31,19 @@ class GooglePhotoAlbumListPresenter(
 
     private suspend fun selectAlbum(selectedAlbumsId: String) {
         localRepo.selectAlbum(selectedAlbumsId)
+        val albums = localRepo.albumList.map {
+            val isSelected = localRepo.selectedAlbumIds.contains(it.id)
+            AlbumInfo(it.coverPhotoBaseUrl, it.title, it.id, isSelected)
+        }
+
+        stateFlow.update {
+            it.copy(albums = albums)
+        }
     }
 
     private suspend fun buildAlbumList() {
         val albumList = googleGooglePhotoRepo.getAlbums()
+        localRepo.setAlbumList(albumList)
 
         val albums = albumList.map {
             val isSelected = localRepo.selectedAlbumIds.contains(it.id)
@@ -46,8 +56,12 @@ class GooglePhotoAlbumListPresenter(
     }
 }
 
-class GooglePhotoAlbumListLocalRepo(private val userPrefs: UserPreferences) {
+class GooglePhotoAlbumListLocalRepo(
+    private val userPrefs: UserPreferences,
+) {
     val selectedAlbumIds = mutableSetOf<String>()
+    var albumList: List<Albums> = emptyList()
+        private set
 
     init {
         selectedAlbumIds.addAll(userPrefs.userPreferencesRecord.selectedAlbumIds)
@@ -61,5 +75,9 @@ class GooglePhotoAlbumListLocalRepo(private val userPrefs: UserPreferences) {
         }
 
         userPrefs.setSelectedAlbums(selectedAlbumIds)
+    }
+
+    fun setAlbumList(albumList: List<Albums>) {
+        this.albumList = albumList
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import coil.Coil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -26,13 +27,9 @@ import gives.robert.kiosk.gphotos.features.config.networking.AuthRepository
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.SetupGooglePhotoScrollableView
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.SetupGooglePhotoAlbumsSelectorView
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
-import gives.robert.kiosk.gphotos.utils.GoogleSignInUtil
-import gives.robert.kiosk.gphotos.utils.HttpClientProvider
-import gives.robert.kiosk.gphotos.utils.ImageLoaderProvider
-import gives.robert.kiosk.gphotos.utils.UserPreferences
+import gives.robert.kiosk.gphotos.utils.*
 
 class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedListener {
-
 
     private lateinit var configPresenter: ConfigPresenter
 
@@ -58,21 +55,32 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    val navigationManager = remember {
+                        NavigationManager()
+                    }
                     val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
                     if (prefs?.authToken == null) {
                         requestServerAuthToken(googleSignInUtil.requestServerAuthTokenIntent)
                         ConfigView()
-                    } else if(prefs.selectedAlbumIds.isEmpty()) {
-                        SetupGooglePhotoAlbumsSelectorView()
                     } else {
-                        SetupGooglePhotoScrollableView()
+                        when (navigationManager.currentLocationFlow.collectAsState().value) {
+                            NavigationLocations.WIFI_SELECT -> {
+                                SetupGooglePhotoAlbumsSelectorView(navigationManager)
+                            }
+                            NavigationLocations.PHOTOS_DISPLAY -> {
+                                SetupGooglePhotoScrollableView(navigationManager)
+                            }
+                            NavigationLocations.ALBUM_SELECT -> {
+                                SetupGooglePhotoAlbumsSelectorView(navigationManager)
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    fun requestServerAuthToken(requestServerAuthTokenIntent: Intent) {
+    private fun requestServerAuthToken(requestServerAuthTokenIntent: Intent) {
         startActivityForResult(
             requestServerAuthTokenIntent,
             GoogleSignInUtil.attemptSignInRequestCode

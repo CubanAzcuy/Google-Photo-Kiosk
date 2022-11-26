@@ -6,12 +6,17 @@ class BetterRandom {
     private var size = -1
     private var lastRandomIndexes: Queue<Int> = LinkedList()
     private val shuffleAmounts = mutableMapOf<Int, Int>()
+    private val curentIndexsRandomIndex = mutableMapOf<Int, Int>()
     private val maxShuffleAmount = 12
     private var countOfFilledIndexes = 0
 
-    fun nextRandom(range: IntRange): Int {
+    fun nextRandom(range: IntRange, currentIndex: Int): Int {
         if (range.last != size || countOfFilledIndexes == size) {
             setup(range)
+        }
+
+        if(curentIndexsRandomIndex.contains(currentIndex)) {
+            return curentIndexsRandomIndex[currentIndex]!!
         }
 
         var index = range.random()
@@ -32,6 +37,7 @@ class BetterRandom {
             lastRandomIndexes.remove()
         }
 
+        curentIndexsRandomIndex[currentIndex] = index
         return index
     }
 

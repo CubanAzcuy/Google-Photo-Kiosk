@@ -19,12 +19,10 @@ import coil.compose.SubcomposeAsyncImage
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
 import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
-import gives.robert.kiosk.gphotos.utils.BetterRandom
-import gives.robert.kiosk.gphotos.utils.HttpClientProvider
-import gives.robert.kiosk.gphotos.utils.UserPreferences
+import gives.robert.kiosk.gphotos.utils.*
 
 @Composable
-fun SetupGooglePhotoScrollableView() {
+fun SetupGooglePhotoScrollableView(navigationManager: NavigationManager) {
     val application = LocalContext.current.applicationContext
 
     val presenter = remember {
@@ -37,17 +35,29 @@ fun SetupGooglePhotoScrollableView() {
     }
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
-    GooglePhotoScrollableDisplayView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState()))
+    GooglePhotoScrollableDisplayView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState())) {
+        presenter.processEvent(DisplayPhotoEvents.ScrolledBack(it))
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GooglePhotoScrollableDisplayView(displayPhotosState: State<DisplayPhotosState>) {
+fun GooglePhotoScrollableDisplayView(
+    displayPhotosState: State<DisplayPhotosState>,
+    onScrolledBack: (Int) -> Unit
+) {
     val scrollViewState = rememberLazyListState()
+    val photoKioskState = displayPhotosState.value
+
     val betterRandom = remember {
         BetterRandom()
     }
-    val photoKioskState = displayPhotosState.value
+    var inUseIndexId = photoKioskState.currentIndex
+
+    if (scrollViewState.isScrollingBack()) {
+        inUseIndexId -= 1
+        onScrolledBack(inUseIndexId)
+    }
 
     LaunchedEffect(key1 = photoKioskState.currentIndex) {
         scrollViewState.scrollToItem(photoKioskState.currentIndex)
@@ -69,7 +79,10 @@ fun GooglePhotoScrollableDisplayView(displayPhotosState: State<DisplayPhotosStat
                     contentAlignment = Alignment.Center
                 ) {
                     if (photoKioskState.photoUrls.isNotEmpty()) {
-                        val index = betterRandom.nextRandom(0 until photoKioskState.photoUrls.size)
+                        val index = betterRandom.nextRandom(
+                            0 until photoKioskState.photoUrls.size,
+                            inUseIndexId
+                        )
                         val url = photoKioskState.photoUrls[index].first
 
                         SubcomposeAsyncImage(
