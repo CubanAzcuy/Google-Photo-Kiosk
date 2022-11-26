@@ -1,15 +1,15 @@
-package gives.robert.kiosk.gphotos.features.display
+package gives.robert.kiosk.gphotos.features.gphotos.displayphotos
 
-import gives.robert.kiosk.gphotos.features.display.data.DisplayPhotosEffect
-import gives.robert.kiosk.gphotos.features.display.data.DisplayPhotoEvents
-import gives.robert.kiosk.gphotos.features.display.data.DisplayPhotosState
-import gives.robert.kiosk.gphotos.features.display.networking.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosEffect
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
+import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.utils.BasePresenter
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.TimeUnit
 
-class GooglePhotoPresenter(
+class GooglePhotoScrollableDisplayPresenter(
     private val googleGooglePhotoRepo: GooglePhotoRepository,
     private val testAlbum: String
 ) : BasePresenter<DisplayPhotoEvents, DisplayPhotosState, DisplayPhotosEffect>() {
@@ -29,14 +29,15 @@ class GooglePhotoPresenter(
     }
 
     private suspend fun buildPhotoList() {
-        val asdfasdf = googleGooglePhotoRepo.fetchPhotos(setOf(testAlbum))
+        val photoDataList = googleGooglePhotoRepo.fetchPhotos()
 
-        val asdfffasdf = asdfasdf.associate {
+        val photoMap = photoDataList.associate {
             it.id to Pair("${it.baseUrl}=d", it.mimeType)
         }
+        val photoUrlList = photoMap.values.toList()
 
         stateFlow.update {
-            it.copy(photoUrls = asdfffasdf.values.toList())
+            it.copy(photoUrls = photoUrlList)
         }
 
         job?.cancel()
@@ -45,7 +46,7 @@ class GooglePhotoPresenter(
                 delay(TimeUnit.SECONDS.toMillis(5))
                 stateFlow.update {
                     it.copy(
-                        photoUrls = asdfffasdf.values.toList(),
+                        photoUrls = photoUrlList,
                         currentIndex = it.currentIndex + 1
                     )
                 }

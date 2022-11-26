@@ -1,8 +1,9 @@
-package gives.robert.kiosk.gphotos.features.display.networking
+package gives.robert.kiosk.gphotos.features.gphotos.networking
 
-import gives.robert.kiosk.gphotos.features.display.networking.models.*
+import gives.robert.kiosk.gphotos.features.gphotos.networking.models.*
 import gives.robert.kiosk.gphotos.utils.UserPreferences
 import io.ktor.client.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
@@ -14,9 +15,13 @@ class GooglePhotoRepository(
 ) {
 
     private val bearerToken
-        get() = "Bearer ${userPrefs.authToken}"
+        get() = "Bearer ${userPrefs.userPreferencesRecord.authToken}"
 
-    suspend fun fetchPhotos(albumIds: Set<String>): List<MediaItems> {
+    suspend fun fetchPhotos(): List<MediaItems> {
+        return fetchPhotos(userPrefs.userPreferencesRecord.selectedAlbumIds)
+    }
+
+    private suspend fun fetchPhotos(albumIds: Set<String>): List<MediaItems> {
         val mediaList = mutableListOf<MediaItems>()
         albumIds.forEach {
             mediaList.addAll(getMediaItems(it).mediaItems)
@@ -24,15 +29,22 @@ class GooglePhotoRepository(
         return mediaList
     }
 
-    private suspend fun getAlbumList() {
-        withContext(Dispatchers.IO) {
+    suspend fun getAlbums(): List<Albums> {
+        return withContext(Dispatchers.IO) {
             try {
-                client.get<AlbumListResponse>("$googlePhotosV1UrlString/albums") {
+                val response = client.get<AlbumListResponse>("$googlePhotosV1UrlString/albums") {
                     authorizeHttpRequestBuilder(this, bearerToken)
                 }
-            } catch (ex: Exception) {
+                response.albums
+            } catch (clientException: ClientRequestException) {
+                val exceptionResponse = clientException.response
+                if (exceptionResponse.status == HttpStatusCode.Unauthorized ||
+                    exceptionResponse.status == HttpStatusCode.Forbidden) {
+                    userPrefs.clearAuthToken()
+                }
+                throw clientException
+            } catch (ex: Throwable) {
                 throw ex
-                //TODO: Remove Auth Token on Error
             }
         }
     }
@@ -48,10 +60,15 @@ class GooglePhotoRepository(
                         headers.append("Authorization", bearerToken)
                     }
                 return@withContext mediaItemSearchResponse
+            } catch (clientException: ClientRequestException) {
+                val exceptionResponse = clientException.response
+                if (exceptionResponse.status == HttpStatusCode.Unauthorized ||
+                    exceptionResponse.status == HttpStatusCode.Forbidden) {
+                    userPrefs.clearAuthToken()
+                }
+                throw clientException
             } catch (ex: Throwable) {
                 throw ex
-                //TODO: Remove Auth Token on Error
-
             }
         }
     }

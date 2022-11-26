@@ -15,6 +15,9 @@ class ConfigPresenter(private val authRepo: AuthRepository) :
 
     override suspend fun handleEvent(event: ConfigureKioskEvents) {
         when (event) {
+            ConfigureKioskEvents.RequestToken -> {
+                effectFlow.emit(ConfigureKioskEffect.RequestToken)
+            }
             is ConfigureKioskEvents.TokenFetched -> {
                 processToken(event.googleAccount)
             }

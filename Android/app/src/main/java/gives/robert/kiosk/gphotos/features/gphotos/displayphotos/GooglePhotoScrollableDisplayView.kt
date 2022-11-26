@@ -1,4 +1,4 @@
-package gives.robert.kiosk.gphotos.features.display
+package gives.robert.kiosk.gphotos.features.gphotos.displayphotos
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -17,20 +17,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import gives.robert.kiosk.gphotos.BuildConfig
-import gives.robert.kiosk.gphotos.features.display.data.DisplayPhotoEvents
-import gives.robert.kiosk.gphotos.features.display.data.DisplayPhotosState
-import gives.robert.kiosk.gphotos.features.display.networking.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
+import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.utils.BetterRandom
 import gives.robert.kiosk.gphotos.utils.HttpClientProvider
 import gives.robert.kiosk.gphotos.utils.UserPreferences
 
-
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SetupGooglePhotoScrollableView() {
     val application = LocalContext.current.applicationContext
 
     val presenter = remember {
-        GooglePhotoPresenter(
+        GooglePhotoScrollableDisplayPresenter(
             googleGooglePhotoRepo = GooglePhotoRepository(
                 HttpClientProvider.client,
                 UserPreferences(application)
@@ -40,13 +39,16 @@ fun SetupGooglePhotoScrollableView() {
     }
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
-    GooglePhotoScrollableView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState()))
+    GooglePhotoScrollableDisplayView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState()))
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GooglePhotoScrollableView(displayPhotosState: State<DisplayPhotosState>) {
+fun GooglePhotoScrollableDisplayView(displayPhotosState: State<DisplayPhotosState>) {
     val scrollViewState = rememberLazyListState()
+    val betterRandom = remember {
+        BetterRandom()
+    }
     val photoKioskState = displayPhotosState.value
 
     LaunchedEffect(key1 = photoKioskState.currentIndex) {
@@ -69,7 +71,7 @@ fun GooglePhotoScrollableView(displayPhotosState: State<DisplayPhotosState>) {
                     contentAlignment = Alignment.Center
                 ) {
                     if (photoKioskState.photoUrls.isNotEmpty()) {
-                        val index = (0 until photoKioskState.photoUrls.size).random()
+                        val index = betterRandom.nextRandom(0 until photoKioskState.photoUrls.size)
                         val url = photoKioskState.photoUrls[index].first
 
                         SubcomposeAsyncImage(

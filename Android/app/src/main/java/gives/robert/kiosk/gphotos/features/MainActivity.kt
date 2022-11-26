@@ -23,9 +23,8 @@ import gives.robert.kiosk.gphotos.features.config.ConfigPresenter
 import gives.robert.kiosk.gphotos.features.config.ConfigView
 import gives.robert.kiosk.gphotos.features.config.data.ConfigureKioskEvents
 import gives.robert.kiosk.gphotos.features.config.networking.AuthRepository
-import gives.robert.kiosk.gphotos.features.display.GooglePhotoScrollableView
-import gives.robert.kiosk.gphotos.features.display.SetupGooglePhotoScrollableView
-import gives.robert.kiosk.gphotos.features.display.data.DisplayPhotosState
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.SetupGooglePhotoScrollableView
+import gives.robert.kiosk.gphotos.features.gphotos.albumlist.SetupGooglePhotoAlbumsSelectorView
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
 import gives.robert.kiosk.gphotos.utils.GoogleSignInUtil
 import gives.robert.kiosk.gphotos.utils.HttpClientProvider
@@ -54,16 +53,17 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
         Coil.setImageLoader(imageLoader)
 
         setContent {
-
             MyApplicationTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val authToken = userPrefs.authTokenFlow.collectAsState(initial = null)
-                    if (authToken.value == null) {
+                    val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
+                    if (prefs?.authToken == null) {
                         requestServerAuthToken(googleSignInUtil.requestServerAuthTokenIntent)
                         ConfigView()
+                    } else if(prefs.selectedAlbumIds.isEmpty()) {
+                        SetupGooglePhotoAlbumsSelectorView()
                     } else {
                         SetupGooglePhotoScrollableView()
                     }
@@ -94,10 +94,6 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         setFullScreen()
-    }
-
-    override fun onResume() {
-        super.onResume()
     }
 
     private fun setFullScreen() {
