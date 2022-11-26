@@ -1,6 +1,7 @@
 package gives.robert.kiosk.gphotos.features.gphotos.albumlist
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -69,16 +71,14 @@ fun GooglePhotoAlbumsSelectorView(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(listPhotoAlbumState.albums, itemContent = { item ->
-                Button(
-                    modifier = Modifier.background(Color.Red),
-                    onClick = {
-                        selectAlbum(item.id)
-                    }) {
                     val selectedColor = if (item.isSelected) Color.Black else Color.Gray
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(selectedColor)
+                            .clickable {
+                                selectAlbum(item.id)
+                            }
                     ) {
                         SubcomposeAsyncImage(
                             model = item.url,
@@ -95,7 +95,6 @@ fun GooglePhotoAlbumsSelectorView(
                         )
                         Text(text = item.title)
                     }
-                }
             })
         }
 
