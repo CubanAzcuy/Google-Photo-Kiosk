@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
-import gives.robert.kiosk.gphotos.BuildConfig
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
 import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
@@ -33,8 +32,7 @@ fun SetupGooglePhotoScrollableView() {
             googleGooglePhotoRepo = GooglePhotoRepository(
                 HttpClientProvider.client,
                 UserPreferences(application)
-            ),
-            testAlbum = BuildConfig.TEST_ALBUM
+            )
         )
     }
 

@@ -10,8 +10,7 @@ import kotlinx.coroutines.flow.update
 import java.util.concurrent.TimeUnit
 
 class GooglePhotoScrollableDisplayPresenter(
-    private val googleGooglePhotoRepo: GooglePhotoRepository,
-    private val testAlbum: String
+    private val googleGooglePhotoRepo: GooglePhotoRepository
 ) : BasePresenter<DisplayPhotoEvents, DisplayPhotosState, DisplayPhotosEffect>() {
 
     override val baseState: DisplayPhotosState
