@@ -24,7 +24,11 @@ class GooglePhotoRepository(
     private suspend fun fetchPhotos(albumIds: Set<String>): List<MediaItems> {
         val mediaList = mutableListOf<MediaItems>()
         albumIds.forEach {
-            mediaList.addAll(getMediaItems(it).mediaItems)
+            try {
+                mediaList.addAll(getMediaItems(it).mediaItems)
+            } catch (ex: Exception){
+                //no-op
+            }
         }
         return mediaList
     }
@@ -42,7 +46,7 @@ class GooglePhotoRepository(
                     exceptionResponse.status == HttpStatusCode.Forbidden) {
                     userPrefs.clearAuthToken()
                 }
-                throw clientException
+                emptyList()
             } catch (ex: Throwable) {
                 throw ex
             }

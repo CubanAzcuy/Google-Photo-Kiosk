@@ -23,9 +23,11 @@ abstract class BasePresenter<Event, State, Effect> : Presenter<Event, State, Eff
     override val effectFlow = MutableSharedFlow<Effect>(0)
 
     init {
-        eventFlow.onEach {
-            handleEvent(it)
-        }.produceIn(eventFlowScope)
+        eventFlowScope.launch {
+            eventFlow.collect {
+                handleEvent(it)
+            }
+        }
     }
 
     override fun processEvent(event: Event) {

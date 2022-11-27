@@ -1,11 +1,15 @@
 package gives.robert.kiosk.gphotos.features.gphotos.albumlist
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -13,13 +17,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.ConstraintSet
 import coil.compose.SubcomposeAsyncImage
+import gives.robert.kiosk.gphotos.R
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.AlbumInfo
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEvents
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumState
@@ -48,7 +59,7 @@ fun SetupGooglePhotoAlbumsSelectorView(navigationManager: NavigationManager) {
 
     presenter.processEvent(ListPhotoAlbumEvents.GetAlbums)
     GooglePhotoAlbumsSelectorView(presenter.stateFlow.collectAsState(initial = ListPhotoAlbumState()),
-        selectAlbum = { it: String ->
+        selectAlbum = {
             presenter.processEvent(ListPhotoAlbumEvents.SelectAlbum(it))
         }, doneWithSelections = {
             navigationManager.gotoLocation(NavigationLocations.PHOTOS_DISPLAY)
@@ -61,52 +72,113 @@ fun GooglePhotoAlbumsSelectorView(
     selectAlbum: (String) -> Unit,
     doneWithSelections: () -> Unit,
 ) {
-    val scrollViewState = rememberLazyListState()
-    val listPhotoAlbumState = listPhotoAlbumStateState.value
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = scrollViewState,
-            modifier = Modifier.fillMaxSize().background(Color.Green),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            items(listPhotoAlbumState.albums, itemContent = { item ->
-                    val selectedColor = if (item.isSelected) Color.Black else Color.Gray
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(selectedColor)
-                            .clickable {
-                                selectAlbum(item.id)
-                            }
-                    ) {
-                        SubcomposeAsyncImage(
-                            model = item.url,
-                            modifier = Modifier
-                                .width(100.dp)
-                                .height(100.dp),
-                            loading = {
-                                CircularProgressIndicator()
-                            },
-                            onError = {
-                                val sdfasdfsda = ""
-                            },
-                            contentDescription = "stringResource(R.string.description)"
-                        )
-                        Text(text = item.title)
-                    }
-            })
+    ConstraintLayout(
+        modifier = Modifier.fillMaxSize(),
+        constraintSet = decoupledConstraints()
+    ) {
+
+        Box(modifier = Modifier.layoutId("photos")) {
+            Dia(listPhotoAlbumStateState, selectAlbum)
         }
 
         Button(
             modifier = Modifier
-                .fillMaxWidth(.9f)
-                .height(300.dp)
+                .layoutId("button")
+                .fillMaxWidth()
+                .height(50.dp)
                 .background(Color.Magenta),
+            shape = RectangleShape,
+            contentPadding = PaddingValues(0.dp),
             onClick = doneWithSelections
         ) {
-            Text(text = "BATMAN")
+            Text(
+                text = "BATMAN"
+            )
         }
+    }
+}
+
+private fun decoupledConstraints(): ConstraintSet {
+    return ConstraintSet {
+        val photoAlbumView = createRefFor("photos")
+        val button = createRefFor("button")
+
+        constrain(button) {
+            end.linkTo(parent.end)
+            start.linkTo(parent.start)
+            bottom.linkTo(parent.bottom)
+        }
+
+        constrain(photoAlbumView) {
+            top.linkTo(parent.top)
+            end.linkTo(parent.end)
+            start.linkTo(parent.start)
+            bottom.linkTo(button.top)
+        }
+    }
+}
+
+@Composable
+private fun Dia(
+    listPhotoAlbumStateState: State<ListPhotoAlbumState>,
+    selectAlbum: (String) -> Unit
+) {
+    val scrollViewState = rememberLazyGridState()
+    val listPhotoAlbumState = listPhotoAlbumStateState.value
+    LazyVerticalGrid(
+        state = scrollViewState,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
+        columns = GridCells.Adaptive(minSize = 128.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+        horizontalArrangement = Arrangement.spacedBy(1.dp)
+    ) {
+        items(listPhotoAlbumState.albums, itemContent = { item ->
+            Box(
+                modifier = Modifier
+                    .width(128.dp)
+                    .height(128.dp)
+                    .background(Color.Black)
+                    .clickable {
+                        selectAlbum(item.id)
+                    }
+            ) {
+                SubcomposeAsyncImage(
+                    model = item.url,
+                    modifier = Modifier.fillMaxSize(),
+                    loading = {
+                        CircularProgressIndicator()
+                    },
+                    onError = {
+                        val sdfasdfsda = ""
+                    },
+                    contentDescription = "stringResource(R.string.description)"
+                )
+
+                if (item.isSelected) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_launcher_background),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .clip(CircleShape)
+                            .align(Alignment.TopEnd)
+                            .width(34.dp)
+                            .height(34.dp)
+                            .border(1.dp, Color.Gray, CircleShape)
+                    )
+                }
+
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .background(color = Color.White.copy(alpha = 0.33f)),
+                    text = item.title,
+                )
+            }
+        })
     }
 }
 
