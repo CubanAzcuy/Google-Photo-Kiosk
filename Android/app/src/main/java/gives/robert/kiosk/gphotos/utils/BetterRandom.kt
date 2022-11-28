@@ -1,5 +1,6 @@
 package gives.robert.kiosk.gphotos.utils
 
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.ThingsINeed
 import java.util.*
 
 class BetterRandom {
@@ -49,14 +50,34 @@ class BetterRandom {
     }
 
     companion object {
-        val set = mutableSetOf<Int>()
-        fun getUnusedNext(range: IntRange): Int {
-            var index = range.random()
+        var set = mutableMapOf<ThingsINeed, Int>()
 
-            while(set.contains(index)) {
-                index = range.random()
+        fun getUnusedNext(thingsINeeds: List<ThingsINeed>): Int {
+
+            if(set.size == thingsINeeds.size) {
+                throw ArrayIndexOutOfBoundsException()
             }
+
+            var index = thingsINeeds.indices.random()
+
+            while(set.contains(thingsINeeds[index])) {
+                index = thingsINeeds.indices.random()
+            }
+
+            set[thingsINeeds[index]] = index
+
             return index
+        }
+
+        fun reset(workingPhotoUrls: Queue<ThingsINeed>) {
+            val tempSet = mutableMapOf<ThingsINeed, Int>()
+
+            workingPhotoUrls.forEach {
+                val index = set[it]
+                tempSet[it] = index!!
+            }
+
+            set = tempSet
         }
     }
 }

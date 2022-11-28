@@ -8,58 +8,58 @@ import gives.robert.kiosk.gphotos.utils.BasePresenter
 import gives.robert.kiosk.gphotos.utils.BetterRandom
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.update
+import java.util.*
 import java.util.concurrent.TimeUnit
 
+typealias ThingsINeed = Pair<String, String>
+
 class GooglePhotoDisplayLocalRepo {
-    private val allPhotoUrls = mutableListOf<Pair<String, String>>()
-    private val workingPhotoUrls = mutableListOf<Pair<String, String>>()
+    private val allPhotoUrls = mutableListOf<ThingsINeed>()
+    private var workingPhotoUrls: Queue<ThingsINeed> = LinkedList();
 
     private var workingMaxIndex = MaxWorkingListSize
-    private var headIndex = 0
-    private var tailIndex = workingMaxIndex
     private var currentIndex = 0
 
-    fun setPhotoList(list: List<Pair<String, String>>) {
+    private val isTinyMode = allPhotoUrls.size >= MaxWorkingListSize * 1.5
+
+    fun setPhotoList(list: List<ThingsINeed>) {
         allPhotoUrls.clear()
         allPhotoUrls.addAll(list)
         workingPhotoUrls.clear()
-
-        headIndex = 0
         workingMaxIndex = if (MaxWorkingListSize > list.size) list.size else MaxWorkingListSize
-        tailIndex = workingMaxIndex
         currentIndex = 0
 
-        for(i in headIndex until tailIndex) {
-            val index = BetterRandom.getUnusedNext(0 until allPhotoUrls.size)
+        for (i in 0 until workingMaxIndex) {
+            val index = BetterRandom.getUnusedNext(allPhotoUrls)
             workingPhotoUrls.add(allPhotoUrls[index])
         }
-
     }
 
-    fun getWorkingList(): List<Pair<String, String>> {
-        return workingPhotoUrls.slice(headIndex until tailIndex)
-    }
-
-    fun increaseIndex() {
+    fun getWorkingList(): List<ThingsINeed> {
         currentIndex++
 
-        if (currentIndex >= workingMaxIndex) {
-            headIndex++
-            tailIndex++
-            val index = BetterRandom.getUnusedNext(0 until allPhotoUrls.size)
-            workingPhotoUrls.add(allPhotoUrls[index])
+        if (isTinyMode) {
+            currentIndex++
+            if (currentIndex >= allPhotoUrls.size) {
+                currentIndex = 0
+            }
+            return allPhotoUrls
         }
 
-        if (tailIndex >= allPhotoUrls.size) {
-            headIndex = 0
-            tailIndex = workingMaxIndex
-            currentIndex = 0
+        if (currentIndex == workingMaxIndex) {
+            currentIndex = workingMaxIndex
+
+            val newIndex = try {
+                BetterRandom.getUnusedNext(allPhotoUrls)
+            } catch (ex: ArrayIndexOutOfBoundsException) {
+                BetterRandom.reset(workingPhotoUrls)
+                BetterRandom.getUnusedNext(allPhotoUrls)
+            }
+            workingPhotoUrls.add(allPhotoUrls[newIndex])
+            workingPhotoUrls.remove()
         }
 
-        //Un-need peace of mind check
-        if (currentIndex > tailIndex) {
-            currentIndex = tailIndex
-        }
+        return workingPhotoUrls.toList()
     }
 
     fun getWorkingIndex(): Int {
@@ -117,11 +117,10 @@ class GooglePhotoScrollableDisplayPresenter(
 
     private suspend fun onScrollDone(currentIndex: Int) {
         localRepo.setWorkingIndex(currentIndex)
-//
+
         job?.cancel()
         job = infiniteScope.launch {
             delay(TimeUnit.SECONDS.toMillis(5))
-            localRepo.increaseIndex()
             stateFlow.update {
                 it.copy(
                     photoUrls = localRepo.getWorkingList(),
