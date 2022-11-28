@@ -13,6 +13,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import coil.Coil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -55,6 +56,8 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    LocalView.current.keepScreenOn = true
+
                     val navigationManager = remember {
                         NavigationManager()
                     }

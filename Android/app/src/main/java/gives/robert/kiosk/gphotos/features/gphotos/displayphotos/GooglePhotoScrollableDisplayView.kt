@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
@@ -35,28 +36,56 @@ fun SetupGooglePhotoScrollableView(navigationManager: NavigationManager) {
     }
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
-    GooglePhotoScrollableDisplayView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState())) {
-        presenter.processEvent(DisplayPhotoEvents.ScrolledBack(it))
-    }
+    GooglePhotoScrollableDisplayView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState()), onScrolledBack =  {
+        presenter.processEvent(DisplayPhotoEvents.ScrollingStopped(it))
+    }, onScrolling = {
+        presenter.processEvent(DisplayPhotoEvents.Scrolling)
+    })
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GooglePhotoScrollableDisplayView(
     displayPhotosState: State<DisplayPhotosState>,
-    onScrolledBack: (Int) -> Unit
+    onScrolledBack: (Int) -> Unit,
+    onScrolling: () -> Unit
 ) {
     val scrollViewState = rememberLazyListState()
     val photoKioskState = displayPhotosState.value
 
-    val betterRandom = remember {
-        BetterRandom()
-    }
-    var inUseIndexId = photoKioskState.currentIndex
+    val fullyVisibleIndices = remember {
+        derivedStateOf {
+            val layoutInfo = scrollViewState.layoutInfo
+            val visibleItemsInfo = layoutInfo.visibleItemsInfo
+            if (visibleItemsInfo.isEmpty()) {
+                emptyList()
+            } else {
+                val fullyVisibleItemsInfo = visibleItemsInfo.toMutableList()
 
-    if (scrollViewState.isScrollingBack()) {
-        inUseIndexId -= 1
-        onScrolledBack(inUseIndexId)
+                val lastItem = fullyVisibleItemsInfo.last()
+
+                val viewportHeight = layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset
+
+                if (lastItem.offset + lastItem.size > viewportHeight) {
+                    fullyVisibleItemsInfo.removeLast()
+                }
+
+                val firstItemIfLeft = fullyVisibleItemsInfo.firstOrNull()
+                if (firstItemIfLeft != null && firstItemIfLeft.offset < layoutInfo.viewportStartOffset) {
+                    fullyVisibleItemsInfo.removeFirst()
+                }
+
+                fullyVisibleItemsInfo.map { it.index }
+            }
+        }
+    }
+
+    if (!scrollViewState.isScrollInProgress) {
+        if (fullyVisibleIndices.value.isNotEmpty()) {
+            onScrolledBack(fullyVisibleIndices.value.first())
+        }
+    } else {
+        onScrolling()
     }
 
     LaunchedEffect(key1 = photoKioskState.currentIndex) {
@@ -69,36 +98,25 @@ fun GooglePhotoScrollableDisplayView(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         flingBehavior = rememberSnapFlingBehavior(lazyListState = scrollViewState)
     ) {
-        items(
-            count = Int.MAX_VALUE,
-            itemContent = {
-                Box(
-                    modifier = Modifier
-                        .fillParentMaxSize()
-                        .background(color = Color.Black),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (photoKioskState.photoUrls.isNotEmpty()) {
-                        val index = betterRandom.nextRandom(
-                            0 until photoKioskState.photoUrls.size,
-                            inUseIndexId
-                        )
-                        val url = photoKioskState.photoUrls[index].first
-
-                        SubcomposeAsyncImage(
-                            model = url,
-                            modifier = Modifier.fillParentMaxSize(),
-                            loading = {
-                                CircularProgressIndicator()
-                            },
-                            onError = {
-                                val sdfasdfsda = ""
-                            },
-                            contentDescription = "stringResource(R.string.description)"
-                        )
-                    }
-                }
+        items(photoKioskState.photoUrls) {
+            Box(
+                modifier = Modifier
+                    .fillParentMaxSize()
+                    .background(color = Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                SubcomposeAsyncImage(
+                    model = it.first,
+                    modifier = Modifier.fillParentMaxSize(),
+                    loading = {
+                        CircularProgressIndicator()
+                    },
+                    onError = {
+                        val sdfasdfsda = ""
+                    },
+                    contentDescription = "stringResource(R.string.description)"
+                )
             }
-        )
+        }
     }
 }

@@ -8,6 +8,7 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.lang.Exception
 
@@ -16,7 +17,7 @@ class AuthRepository(
     private val userPrefs: UserPreferences,
     private val client: HttpClient,
 ) {
-    suspend fun authenticate(token: String) {
+    suspend fun authenticate(token: String, retryCount: Int = 0) {
         withContext(Dispatchers.IO) {
             try {
                 val response = client.post<AccessTokenResponse>("http://$localIp/v1/authorize") {
@@ -28,8 +29,15 @@ class AuthRepository(
                 }
                 userPrefs.saveAuthToken(response.access_token)
             } catch (ex: Exception) {
-                val asdfasdfasd = ex
-                throw ex
+                when {
+                    ex is java.net.ConnectException && retryCount < 20 -> {
+                        delay(500L * retryCount * (retryCount/2))
+                        authenticate(token, retryCount + 1)
+                    }
+                    else -> {
+                        throw ex
+                    }
+                }
             }
         }
     }

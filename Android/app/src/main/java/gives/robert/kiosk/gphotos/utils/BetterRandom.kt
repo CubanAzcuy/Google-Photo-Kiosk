@@ -47,4 +47,16 @@ class BetterRandom {
         countOfFilledIndexes = 0
         shuffleAmounts.clear()
     }
+
+    companion object {
+        val set = mutableSetOf<Int>()
+        fun getUnusedNext(range: IntRange): Int {
+            var index = range.random()
+
+            while(set.contains(index)) {
+                index = range.random()
+            }
+            return index
+        }
+    }
 }

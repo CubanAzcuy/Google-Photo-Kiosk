@@ -54,7 +54,7 @@ class GooglePhotoRepository(
     }
 
     private suspend fun getMediaItems(albumId: String): MediaItemSearchResponse {
-        val media = MediaItemSearchRequest(albumId)
+        val media = MediaItemSearchRequest(albumId, 100)
         return withContext(Dispatchers.IO) {
             try {
                 val mediaItemSearchResponse =
