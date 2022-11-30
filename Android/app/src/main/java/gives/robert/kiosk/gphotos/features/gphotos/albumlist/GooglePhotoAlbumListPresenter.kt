@@ -3,39 +3,38 @@ package gives.robert.kiosk.gphotos.features.gphotos.albumlist
 import androidx.compose.runtime.*
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.AlbumInfo
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEvents
-import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumState
+import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumUiState
 import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.networking.models.Albums
 import gives.robert.kiosk.gphotos.utils.UserPreferences
-import kotlinx.coroutines.flow.Flow
 
 @Composable
 fun GooglePhotoAlbumListPresenter(
     googleGooglePhotoRepo: GooglePhotoRepository,
     localRepo: GooglePhotoAlbumListLocalRepo,
-    events: Flow<ListPhotoAlbumEvents>
-): State<ListPhotoAlbumState> {
+    events: ListPhotoAlbumEvents?
+): State<ListPhotoAlbumUiState> {
 
-    val eventState by events.collectAsState(null)
-    val uiState = remember { mutableStateOf(ListPhotoAlbumState())}
+    val uiState = remember { mutableStateOf(ListPhotoAlbumUiState())}
 
-    LaunchedEffect(eventState) {
-        val updatedState: ListPhotoAlbumState? = when (val listPhotoAlbumEvents = eventState) {
+    LaunchedEffect(events) {
+        val listPhotoAlbumEvents = events ?: return@LaunchedEffect
+        val updatedUiState: ListPhotoAlbumUiState = when (listPhotoAlbumEvents) {
             ListPhotoAlbumEvents.GetAlbums -> {
                 val albumList = googleGooglePhotoRepo.getAlbums()
                 localRepo.setAlbumList(albumList)
-                ListPhotoAlbumState(localRepo.getAlbumInfos())
+                ListPhotoAlbumUiState(localRepo.getAlbumInfos())
             }
             is ListPhotoAlbumEvents.SelectAlbum -> {
                 localRepo.selectAlbum(listPhotoAlbumEvents.selectedAlbumsId)
-                ListPhotoAlbumState(localRepo.getAlbumInfos())
+                ListPhotoAlbumUiState(localRepo.getAlbumInfos())
             }
             else -> {
-                null
+                uiState.value
             }
         }
 
-        if (updatedState != null) uiState.value= updatedState
+        uiState.value = updatedUiState
     }
 
     return uiState

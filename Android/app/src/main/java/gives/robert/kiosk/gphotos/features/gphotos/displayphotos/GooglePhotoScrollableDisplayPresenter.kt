@@ -13,6 +13,62 @@ import java.util.concurrent.TimeUnit
 
 typealias ThingsINeed = Pair<String, String>
 
+class GooglePhotoScrollableDisplayPresenter(
+    private val googleGooglePhotoRepo: GooglePhotoRepository,
+    private var localRepo: GooglePhotoDisplayLocalRepo = GooglePhotoDisplayLocalRepo()
+) : BasePresenter<DisplayPhotoEvents, DisplayPhotosState, DisplayPhotosEffect>() {
+
+    override val baseState: DisplayPhotosState
+        get() = DisplayPhotosState()
+
+    private val infiniteScope = CoroutineScope(Dispatchers.IO)
+    private var job: Job? = null
+
+    override suspend fun handleEvent(event: DisplayPhotoEvents) {
+        when (event) {
+            DisplayPhotoEvents.GetPhotos -> {
+                buildPhotoList()
+            }
+            is DisplayPhotoEvents.ScrollingStopped -> {
+                onScrollDone(event.currentIndex)
+            }
+            else -> {
+                job?.cancel()
+            }
+        }
+    }
+
+    private suspend fun buildPhotoList() {
+        val photoDataList = googleGooglePhotoRepo.fetchPhotos()
+
+        val photoMap = photoDataList.associate {
+            it.id to Pair("${it.baseUrl}=d", it.mimeType)
+        }
+        val photoUrlList = photoMap.values.toList()
+
+        localRepo.setPhotoList(photoUrlList)
+
+        stateFlow.update {
+            it.copy(photoUrls = localRepo.getWorkingList())
+        }
+    }
+
+    private suspend fun onScrollDone(currentIndex: Int) {
+        localRepo.setWorkingIndex(currentIndex)
+
+        job?.cancel()
+        job = infiniteScope.launch {
+            delay(TimeUnit.SECONDS.toMillis(5))
+            stateFlow.update {
+                it.copy(
+                    photoUrls = localRepo.getWorkingList(),
+                    currentIndex = localRepo.getWorkingIndex()
+                )
+            }
+        }
+    }
+}
+
 class GooglePhotoDisplayLocalRepo {
     private val allPhotoUrls = mutableListOf<ThingsINeed>()
     private var workingPhotoUrls: Queue<ThingsINeed> = LinkedList();
@@ -75,58 +131,3 @@ class GooglePhotoDisplayLocalRepo {
     }
 }
 
-class GooglePhotoScrollableDisplayPresenter(
-    private val googleGooglePhotoRepo: GooglePhotoRepository,
-    private var localRepo: GooglePhotoDisplayLocalRepo = GooglePhotoDisplayLocalRepo()
-) : BasePresenter<DisplayPhotoEvents, DisplayPhotosState, DisplayPhotosEffect>() {
-
-    override val baseState: DisplayPhotosState
-        get() = DisplayPhotosState()
-
-    private val infiniteScope = CoroutineScope(Dispatchers.IO)
-    private var job: Job? = null
-
-    override suspend fun handleEvent(event: DisplayPhotoEvents) {
-        when (event) {
-            DisplayPhotoEvents.GetPhotos -> {
-                buildPhotoList()
-            }
-            is DisplayPhotoEvents.ScrollingStopped -> {
-                onScrollDone(event.currentIndex)
-            }
-            else -> {
-                job?.cancel()
-            }
-        }
-    }
-
-    private suspend fun buildPhotoList() {
-        val photoDataList = googleGooglePhotoRepo.fetchPhotos()
-
-        val photoMap = photoDataList.associate {
-            it.id to Pair("${it.baseUrl}=d", it.mimeType)
-        }
-        val photoUrlList = photoMap.values.toList()
-
-        localRepo.setPhotoList(photoUrlList)
-
-        stateFlow.update {
-            it.copy(photoUrls = localRepo.getWorkingList())
-        }
-    }
-
-    private suspend fun onScrollDone(currentIndex: Int) {
-        localRepo.setWorkingIndex(currentIndex)
-
-        job?.cancel()
-        job = infiniteScope.launch {
-            delay(TimeUnit.SECONDS.toMillis(5))
-            stateFlow.update {
-                it.copy(
-                    photoUrls = localRepo.getWorkingList(),
-                    currentIndex = localRepo.getWorkingIndex()
-                )
-            }
-        }
-    }
-}

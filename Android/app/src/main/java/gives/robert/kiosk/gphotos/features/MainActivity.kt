@@ -11,14 +11,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
-import androidx.lifecycle.Lifecycle
 import coil.Coil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -26,7 +22,6 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.tasks.Task
 import connectivityState
-import currentConnectivityState
 import gives.robert.kiosk.gphotos.BuildConfig
 import gives.robert.kiosk.gphotos.features.config.ConfigPresenter
 import gives.robert.kiosk.gphotos.features.config.ConfigView
@@ -36,11 +31,13 @@ import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.SetupGooglePhot
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.SetupGooglePhotoAlbumsSelectorView
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
 import gives.robert.kiosk.gphotos.utils.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedListener {
 
     private lateinit var configPresenter: ConfigPresenter
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -65,34 +62,37 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
                 ) {
                     LocalView.current.keepScreenOn = true
 
-                    val navigationManager = remember {
-                        NavigationManager()
-                    }
+                    val navigationManager = remember { NavigationManager() }
                     val connection by connectivityState()
-                    val lifecycleState = LocalLifecycleOwner.current.lifecycle.observeAsState()
-                    val state = lifecycleState.value
+                    val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
 
-                    if (connection != ConnectionState.Available) {
-                        LaunchedEffect(LocalLifecycleOwner.current.lifecycle.currentState) {
-                            startActivity(Intent("android.settings.panel.action.INTERNET_CONNECTIVITY"))
+                    when {
+                        connection != ConnectionState.Available -> {
+                            LaunchedEffect(LocalLifecycleOwner.current.lifecycle.currentState) {
+                                startActivity(Intent("android.settings.panel.action.INTERNET_CONNECTIVITY"))
+                            }
                         }
-                    } else {
-                        val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
-                        if (prefs?.authToken == null) {
+                        prefs?.authToken == null -> {
                             requestServerAuthToken(googleSignInUtil.requestServerAuthTokenIntent)
                             ConfigView()
-                        } else {
-                            when (navigationManager.currentLocationFlow.collectAsState().value) {
-                                NavigationLocations.PHOTOS_DISPLAY -> {
-                                    SetupGooglePhotoScrollableView(navigationManager)
-                                }
-                                NavigationLocations.ALBUM_SELECT -> {
-                                    SetupGooglePhotoAlbumsSelectorView(navigationManager)
-                                }
-                            }
+                        }
+                        else -> {
+                            mainNavigation(navigationManager, userPrefs)
                         }
                     }
                 }
+            }
+        }
+    }
+
+    @Composable
+    private fun mainNavigation(navigationManager: NavigationManager, userPrefs: UserPreferences) {
+        when (navigationManager.currentLocationFlow.collectAsState().value) {
+            NavigationLocations.PHOTOS_DISPLAY -> {
+                SetupGooglePhotoScrollableView(navigationManager, userPrefs)
+            }
+            NavigationLocations.ALBUM_SELECT -> {
+                SetupGooglePhotoAlbumsSelectorView(navigationManager, userPrefs)
             }
         }
     }

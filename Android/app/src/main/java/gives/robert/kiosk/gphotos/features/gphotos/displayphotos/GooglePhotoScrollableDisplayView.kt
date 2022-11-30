@@ -23,24 +23,25 @@ import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoReposit
 import gives.robert.kiosk.gphotos.utils.*
 
 @Composable
-fun SetupGooglePhotoScrollableView(navigationManager: NavigationManager) {
-    val application = LocalContext.current.applicationContext
+fun SetupGooglePhotoScrollableView(
+    navigationManager: NavigationManager,
+    userPrefs: UserPreferences
+) {
 
+    val googlePhotoRepo = remember { GooglePhotoRepository(HttpClientProvider.client, userPrefs) }
     val presenter = remember {
-        GooglePhotoScrollableDisplayPresenter(
-            googleGooglePhotoRepo = GooglePhotoRepository(
-                HttpClientProvider.client,
-                UserPreferences(application)
-            )
-        )
+        GooglePhotoScrollableDisplayPresenter(googleGooglePhotoRepo = googlePhotoRepo)
     }
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
-    GooglePhotoScrollableDisplayView(presenter.stateFlow.collectAsState(initial = DisplayPhotosState()), onScrolledBack =  {
-        presenter.processEvent(DisplayPhotoEvents.ScrollingStopped(it))
-    }, onScrolling = {
-        presenter.processEvent(DisplayPhotoEvents.Scrolling)
-    })
+    GooglePhotoScrollableDisplayView(
+        presenter.stateFlow.collectAsState(initial = DisplayPhotosState()),
+        onScrolledBack = {
+            presenter.processEvent(DisplayPhotoEvents.ScrollingStopped(it))
+        },
+        onScrolling = {
+            presenter.processEvent(DisplayPhotoEvents.Scrolling)
+        })
 }
 
 @OptIn(ExperimentalFoundationApi::class)
