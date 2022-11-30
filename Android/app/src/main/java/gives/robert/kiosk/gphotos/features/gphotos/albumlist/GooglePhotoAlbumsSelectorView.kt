@@ -13,10 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,46 +37,53 @@ import gives.robert.kiosk.gphotos.utils.HttpClientProvider
 import gives.robert.kiosk.gphotos.utils.NavigationLocations
 import gives.robert.kiosk.gphotos.utils.NavigationManager
 import gives.robert.kiosk.gphotos.utils.UserPreferences
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun SetupGooglePhotoAlbumsSelectorView(navigationManager: NavigationManager) {
     val application = LocalContext.current.applicationContext
     val userPrefs = UserPreferences(application)
 
-    val presenter = remember {
-        GooglePhotoAlbumListPresenter(
-            googleGooglePhotoRepo = GooglePhotoRepository(
-                HttpClientProvider.client,
-                userPrefs
-            ),
-            localRepo = GooglePhotoAlbumListLocalRepo(userPrefs)
-        )
+    val sharedFlow = remember {
+        MutableSharedFlow<ListPhotoAlbumEvents>()
     }
 
-    presenter.processEvent(ListPhotoAlbumEvents.GetAlbums)
-    GooglePhotoAlbumsSelectorView(presenter.stateFlow.collectAsState(initial = ListPhotoAlbumState()),
-        selectAlbum = {
-            presenter.processEvent(ListPhotoAlbumEvents.SelectAlbum(it))
-        }, doneWithSelections = {
-            navigationManager.gotoLocation(NavigationLocations.PHOTOS_DISPLAY)
-        })
+    val localRepo = remember {
+        GooglePhotoAlbumListLocalRepo(userPrefs)
+    }
+    val listPhotoAlbumState = GooglePhotoAlbumListPresenter(
+        googleGooglePhotoRepo = GooglePhotoRepository(
+            HttpClientProvider.client,
+            userPrefs
+        ),
+        localRepo =localRepo ,
+        sharedFlow
+    )
+
+    //TODO: I don't think this is right?
+    LaunchedEffect(Unit) {
+        sharedFlow.emit(ListPhotoAlbumEvents.GetAlbums)
+    }
+
+    GooglePhotoAlbumsSelectorView(listPhotoAlbumState, sharedFlow, navigationManager)
 }
 
 @Composable
 fun GooglePhotoAlbumsSelectorView(
-    listPhotoAlbumStateState: State<ListPhotoAlbumState>,
-    selectAlbum: (String) -> Unit,
-    doneWithSelections: () -> Unit,
+    listPhotoAlbumState: State<ListPhotoAlbumState>,
+    eventFlow: MutableSharedFlow<ListPhotoAlbumEvents>,
+    navigationManager: NavigationManager,
 ) {
-
     ConstraintLayout(
         modifier = Modifier.fillMaxSize(),
         constraintSet = decoupledConstraints()
     ) {
 
         Box(modifier = Modifier.layoutId("photos")) {
-            Dia(listPhotoAlbumStateState, selectAlbum)
+            PhotoAlbumList(listPhotoAlbumState, eventFlow)
         }
 
         Button(
@@ -90,7 +94,9 @@ fun GooglePhotoAlbumsSelectorView(
                 .background(Color.Magenta),
             shape = RectangleShape,
             contentPadding = PaddingValues(0.dp),
-            onClick = doneWithSelections
+            onClick = {
+                navigationManager.gotoLocation(NavigationLocations.PHOTOS_DISPLAY)
+            }
         ) {
             Text(
                 text = "BATMAN"
@@ -120,12 +126,14 @@ private fun decoupledConstraints(): ConstraintSet {
 }
 
 @Composable
-private fun Dia(
-    listPhotoAlbumStateState: State<ListPhotoAlbumState>,
-    selectAlbum: (String) -> Unit
+private fun PhotoAlbumList(
+    listPhotoAlbumState: State<ListPhotoAlbumState>,
+    eventFlow: MutableSharedFlow<ListPhotoAlbumEvents>
 ) {
     val scrollViewState = rememberLazyGridState()
-    val listPhotoAlbumState = listPhotoAlbumStateState.value
+    val coroutineScope = rememberCoroutineScope()
+    val listPhotoAlbum = listPhotoAlbumState.value
+
     LazyVerticalGrid(
         state = scrollViewState,
         modifier = Modifier
@@ -135,14 +143,16 @@ private fun Dia(
         verticalArrangement = Arrangement.spacedBy(1.dp),
         horizontalArrangement = Arrangement.spacedBy(1.dp)
     ) {
-        items(listPhotoAlbumState.albums, itemContent = { item ->
+        items(listPhotoAlbum.albums, itemContent = { item ->
             Box(
                 modifier = Modifier
                     .width(128.dp)
                     .height(128.dp)
                     .background(Color.Black)
                     .clickable {
-                        selectAlbum(item.id)
+                        coroutineScope.launch {
+                            eventFlow.emit(ListPhotoAlbumEvents.SelectAlbum(item.id))
+                        }
                     }
             ) {
                 SubcomposeAsyncImage(
@@ -202,11 +212,10 @@ fun DefaultPreview() {
 
         )
         val flow = flowOf(ListPhotoAlbumState(albumsInfos))
-        GooglePhotoAlbumsSelectorView(flow.collectAsState(initial = ListPhotoAlbumState()),
-            selectAlbum = {
-
-            }, doneWithSelections = {
-
-            })
+        GooglePhotoAlbumsSelectorView(
+            flow.collectAsState(initial = ListPhotoAlbumState()),
+            MutableSharedFlow(),
+            NavigationManager()
+        )
     }
 }

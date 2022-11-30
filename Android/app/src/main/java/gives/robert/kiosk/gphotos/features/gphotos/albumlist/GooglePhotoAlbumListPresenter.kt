@@ -1,67 +1,51 @@
 package gives.robert.kiosk.gphotos.features.gphotos.albumlist
 
+import androidx.compose.runtime.*
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.AlbumInfo
-import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEffect
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEvents
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumState
 import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.networking.models.Albums
-import gives.robert.kiosk.gphotos.utils.BasePresenter
 import gives.robert.kiosk.gphotos.utils.UserPreferences
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.Flow
 
-class GooglePhotoAlbumListPresenter(
-    private val googleGooglePhotoRepo: GooglePhotoRepository,
-    private val localRepo: GooglePhotoAlbumListLocalRepo,
-) : BasePresenter<ListPhotoAlbumEvents, ListPhotoAlbumState, ListPhotoAlbumEffect>() {
+@Composable
+fun GooglePhotoAlbumListPresenter(
+    googleGooglePhotoRepo: GooglePhotoRepository,
+    localRepo: GooglePhotoAlbumListLocalRepo,
+    events: Flow<ListPhotoAlbumEvents>
+): State<ListPhotoAlbumState> {
 
-    override val baseState: ListPhotoAlbumState
-        get() = ListPhotoAlbumState()
+    val eventState by events.collectAsState(null)
+    val uiState = remember { mutableStateOf(ListPhotoAlbumState())}
 
-    override suspend fun handleEvent(event: ListPhotoAlbumEvents) {
-        when (event) {
+    LaunchedEffect(eventState) {
+        val updatedState: ListPhotoAlbumState? = when (val listPhotoAlbumEvents = eventState) {
             ListPhotoAlbumEvents.GetAlbums -> {
-                buildAlbumList()
+                val albumList = googleGooglePhotoRepo.getAlbums()
+                localRepo.setAlbumList(albumList)
+                ListPhotoAlbumState(localRepo.getAlbumInfos())
             }
             is ListPhotoAlbumEvents.SelectAlbum -> {
-                selectAlbum(event.selectedAlbumsId)
+                localRepo.selectAlbum(listPhotoAlbumEvents.selectedAlbumsId)
+                ListPhotoAlbumState(localRepo.getAlbumInfos())
+            }
+            else -> {
+                null
             }
         }
+
+        if (updatedState != null) uiState.value= updatedState
     }
 
-    private suspend fun selectAlbum(selectedAlbumsId: String) {
-        localRepo.selectAlbum(selectedAlbumsId)
-        val albums = localRepo.albumList.map {
-            val isSelected = localRepo.selectedAlbumIds.contains(it.id)
-            AlbumInfo(it.coverPhotoBaseUrl, it.title, it.id, isSelected)
-        }
-
-        stateFlow.update {
-            it.copy(albums = albums)
-        }
-    }
-
-    private suspend fun buildAlbumList() {
-        val albumList = googleGooglePhotoRepo.getAlbums()
-        localRepo.setAlbumList(albumList)
-
-        val albums = albumList.map {
-            val isSelected = localRepo.selectedAlbumIds.contains(it.id)
-            AlbumInfo(it.coverPhotoBaseUrl, it.title, it.id, isSelected)
-        }
-
-        stateFlow.update {
-            it.copy(albums = albums)
-        }
-    }
+    return uiState
 }
 
 class GooglePhotoAlbumListLocalRepo(
     private val userPrefs: UserPreferences,
 ) {
-    val selectedAlbumIds = mutableSetOf<String>()
-    var albumList: List<Albums> = emptyList()
-        private set
+    private val selectedAlbumIds = mutableSetOf<String>()
+    private var albumList: List<Albums> = emptyList()
 
     init {
         selectedAlbumIds.addAll(userPrefs.userPreferencesRecord.selectedAlbumIds)
@@ -79,5 +63,12 @@ class GooglePhotoAlbumListLocalRepo(
 
     fun setAlbumList(albumList: List<Albums>) {
         this.albumList = albumList
+    }
+
+    fun getAlbumInfos(): List<AlbumInfo> {
+        return albumList.map {
+            val isSelected = selectedAlbumIds.contains(it.id)
+            AlbumInfo(it.coverPhotoBaseUrl, it.title, it.id, isSelected)
+        }
     }
 }
