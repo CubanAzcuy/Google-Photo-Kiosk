@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 enum class NavigationLocations {
-    WIFI_SELECT,
     PHOTOS_DISPLAY,
     ALBUM_SELECT;
 }
@@ -16,7 +15,7 @@ class NavigationManager {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val _currentLocationFlow = MutableStateFlow(NavigationLocations.WIFI_SELECT)
+    private val _currentLocationFlow = MutableStateFlow(NavigationLocations.ALBUM_SELECT)
     val currentLocationFlow: StateFlow<NavigationLocations> = _currentLocationFlow
 
     fun gotoLocation(locations: NavigationLocations) {

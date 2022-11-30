@@ -1,5 +1,6 @@
 package gives.robert.kiosk.gphotos.features
 
+import ConnectionState
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -10,16 +11,22 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.Lifecycle
 import coil.Coil
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.tasks.Task
+import connectivityState
+import currentConnectivityState
 import gives.robert.kiosk.gphotos.BuildConfig
 import gives.robert.kiosk.gphotos.features.config.ConfigPresenter
 import gives.robert.kiosk.gphotos.features.config.ConfigView
@@ -61,20 +68,27 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
                     val navigationManager = remember {
                         NavigationManager()
                     }
-                    val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
-                    if (prefs?.authToken == null) {
-                        requestServerAuthToken(googleSignInUtil.requestServerAuthTokenIntent)
-                        ConfigView()
+                    val connection by connectivityState()
+                    val lifecycleState = LocalLifecycleOwner.current.lifecycle.observeAsState()
+                    val state = lifecycleState.value
+
+                    if (connection != ConnectionState.Available) {
+                        LaunchedEffect(LocalLifecycleOwner.current.lifecycle.currentState) {
+                            startActivity(Intent("android.settings.panel.action.INTERNET_CONNECTIVITY"))
+                        }
                     } else {
-                        when (navigationManager.currentLocationFlow.collectAsState().value) {
-                            NavigationLocations.WIFI_SELECT -> {
-                                SetupGooglePhotoAlbumsSelectorView(navigationManager)
-                            }
-                            NavigationLocations.PHOTOS_DISPLAY -> {
-                                SetupGooglePhotoScrollableView(navigationManager)
-                            }
-                            NavigationLocations.ALBUM_SELECT -> {
-                                SetupGooglePhotoAlbumsSelectorView(navigationManager)
+                        val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
+                        if (prefs?.authToken == null) {
+                            requestServerAuthToken(googleSignInUtil.requestServerAuthTokenIntent)
+                            ConfigView()
+                        } else {
+                            when (navigationManager.currentLocationFlow.collectAsState().value) {
+                                NavigationLocations.PHOTOS_DISPLAY -> {
+                                    SetupGooglePhotoScrollableView(navigationManager)
+                                }
+                                NavigationLocations.ALBUM_SELECT -> {
+                                    SetupGooglePhotoAlbumsSelectorView(navigationManager)
+                                }
                             }
                         }
                     }
