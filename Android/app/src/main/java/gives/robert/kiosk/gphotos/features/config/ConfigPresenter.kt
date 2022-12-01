@@ -1,10 +1,10 @@
 package gives.robert.kiosk.gphotos.features.config
 
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import gives.robert.kiosk.gphotos.features.config.data.ConfigureKioskEffect
-import gives.robert.kiosk.gphotos.features.config.data.ConfigureKioskEvents
-import gives.robert.kiosk.gphotos.features.config.data.ConfigureKioskState
-import gives.robert.kiosk.gphotos.features.config.networking.AuthRepository
+import gives.robert.kiosk.gphotos.features.config.ui.io.ConfigureKioskEffect
+import gives.robert.kiosk.gphotos.features.config.ui.io.ConfigureKioskEvents
+import gives.robert.kiosk.gphotos.features.config.ui.io.ConfigureKioskState
+import gives.robert.kiosk.gphotos.features.config.data.AuthRepository
 import gives.robert.kiosk.gphotos.utils.BasePresenter
 
 class ConfigPresenter(private val authRepo: AuthRepository) :

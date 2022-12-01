@@ -1,6 +1,5 @@
 package gives.robert.kiosk.gphotos.features
 
-import ConnectionState
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -21,26 +20,31 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
 import com.google.android.gms.tasks.Task
-import connectivityState
 import gives.robert.kiosk.gphotos.BuildConfig
 import gives.robert.kiosk.gphotos.features.config.ConfigPresenter
-import gives.robert.kiosk.gphotos.features.config.ConfigView
-import gives.robert.kiosk.gphotos.features.config.data.ConfigureKioskEvents
-import gives.robert.kiosk.gphotos.features.config.networking.AuthRepository
-import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.SetupGooglePhotoScrollableView
+import gives.robert.kiosk.gphotos.features.config.ui.ConfigView
+import gives.robert.kiosk.gphotos.features.config.ui.io.ConfigureKioskEvents
+import gives.robert.kiosk.gphotos.features.config.data.AuthRepository
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.SetupGooglePhotoAlbumsSelectorView
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.SetupGooglePhotoScrollableView
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
 import gives.robert.kiosk.gphotos.utils.*
+import gives.robert.kiosk.gphotos.utils.extensions.ConnectionState
+import gives.robert.kiosk.gphotos.utils.extensions.connectivityState
+import gives.robert.kiosk.gphotos.utils.providers.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+
 
 class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedListener {
 
     private lateinit var configPresenter: ConfigPresenter
+//    fun getRowCount(): Long {
+//        return DatabaseUtils.queryNumEntries(readableDatabase, TABLE_NAME)
+//    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val userPrefs = UserPreferences(context = applicationContext)
         configPresenter = ConfigPresenter(
             AuthRepository(
@@ -65,6 +69,10 @@ class MainActivity : ComponentActivity(), GoogleApiClient.OnConnectionFailedList
                     val navigationManager = remember { NavigationManager() }
                     val connection by connectivityState()
                     val prefs = userPrefs.preferencesFlow.collectAsState(initial = null).value
+
+
+//                    val runInOfflineMode = connection != ConnectionState.Available &&
+
 
                     when {
                         connection != ConnectionState.Available -> {

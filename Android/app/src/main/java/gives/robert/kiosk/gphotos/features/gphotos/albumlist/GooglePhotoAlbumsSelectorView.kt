@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.layoutId
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -30,27 +31,31 @@ import gives.robert.kiosk.gphotos.R
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.AlbumInfo
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEvents
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumUiState
-import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.OfflineGooglePhotosRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.OnlineGooglePhotoRepository
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
-import gives.robert.kiosk.gphotos.utils.HttpClientProvider
-import gives.robert.kiosk.gphotos.utils.NavigationLocations
-import gives.robert.kiosk.gphotos.utils.NavigationManager
-import gives.robert.kiosk.gphotos.utils.UserPreferences
+import gives.robert.kiosk.gphotos.utils.extensions.observeConnectivityAsFlow
+import gives.robert.kiosk.gphotos.utils.providers.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
-
 @Composable
 fun SetupGooglePhotoAlbumsSelectorView(navigationManager: NavigationManager, userPrefs: UserPreferences) {
+    val context = LocalContext.current
     val sharedFlow = remember { MutableSharedFlow<ListPhotoAlbumEvents>() }
     val localRepo = remember { GooglePhotoAlbumListLocalRepo(userPrefs) }
-    val googleGooglePhotoRepo = remember { GooglePhotoRepository(HttpClientProvider.client, userPrefs) }
+    val googlePhotoRepo = remember {
+        val online = OnlineGooglePhotoRepository(HttpClientProvider.client, userPrefs)
+        val offline = OfflineGooglePhotosRepository(DatabaseQueryProvider.getInstance(context).database)
+        GooglePhotoRepository(online, offline, context.observeConnectivityAsFlow())
+    }
     val eventState by sharedFlow.collectAsState(null)
 
     val listPhotoAlbumState = GooglePhotoAlbumListPresenter(
-        googleGooglePhotoRepo = googleGooglePhotoRepo,
+        googleGooglePhotoRepo = googlePhotoRepo,
         localRepo = localRepo,
         events = eventState
     )

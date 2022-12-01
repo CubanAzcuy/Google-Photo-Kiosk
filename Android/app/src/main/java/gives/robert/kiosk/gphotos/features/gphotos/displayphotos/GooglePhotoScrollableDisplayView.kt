@@ -17,18 +17,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
+import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.OfflineGooglePhotosRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.OnlineGooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
-import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.utils.*
+import gives.robert.kiosk.gphotos.utils.extensions.observeConnectivityAsFlow
+import gives.robert.kiosk.gphotos.utils.providers.DatabaseQueryProvider
+import gives.robert.kiosk.gphotos.utils.providers.HttpClientProvider
+import gives.robert.kiosk.gphotos.utils.providers.NavigationManager
+import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 
 @Composable
 fun SetupGooglePhotoScrollableView(
     navigationManager: NavigationManager,
     userPrefs: UserPreferences
 ) {
-
-    val googlePhotoRepo = remember { GooglePhotoRepository(HttpClientProvider.client, userPrefs) }
+    val context = LocalContext.current
+    val googlePhotoRepo = remember {
+        val online = OnlineGooglePhotoRepository(HttpClientProvider.client, userPrefs)
+        val offline = OfflineGooglePhotosRepository(DatabaseQueryProvider.getInstance(context).database)
+        GooglePhotoRepository(online, offline, context.observeConnectivityAsFlow())
+    }
     val presenter = remember {
         GooglePhotoScrollableDisplayPresenter(googleGooglePhotoRepo = googlePhotoRepo)
     }
@@ -107,7 +118,7 @@ fun GooglePhotoScrollableDisplayView(
                 contentAlignment = Alignment.Center
             ) {
                 SubcomposeAsyncImage(
-                    model = it.first,
+                    model = it.baseUrl,
                     modifier = Modifier.fillParentMaxSize(),
                     loading = {
                         CircularProgressIndicator()

@@ -3,15 +3,14 @@ package gives.robert.kiosk.gphotos.features.gphotos.displayphotos
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosEffect
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
-import gives.robert.kiosk.gphotos.features.gphotos.networking.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleMediaItem
 import gives.robert.kiosk.gphotos.utils.BasePresenter
-import gives.robert.kiosk.gphotos.utils.BetterRandom
+import gives.robert.kiosk.gphotos.utils.GetNextGoogleMediaItem
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.update
 import java.util.*
 import java.util.concurrent.TimeUnit
-
-typealias ThingsINeed = Pair<String, String>
 
 class GooglePhotoScrollableDisplayPresenter(
     private val googleGooglePhotoRepo: GooglePhotoRepository,
@@ -40,13 +39,7 @@ class GooglePhotoScrollableDisplayPresenter(
 
     private suspend fun buildPhotoList() {
         val photoDataList = googleGooglePhotoRepo.fetchPhotos()
-
-        val photoMap = photoDataList.associate {
-            it.id to Pair("${it.baseUrl}=d", it.mimeType)
-        }
-        val photoUrlList = photoMap.values.toList()
-
-        localRepo.setPhotoList(photoUrlList)
+        localRepo.setPhotoList(photoDataList)
 
         stateFlow.update {
             it.copy(photoUrls = localRepo.getWorkingList())
@@ -55,10 +48,13 @@ class GooglePhotoScrollableDisplayPresenter(
 
     private suspend fun onScrollDone(currentIndex: Int) {
         localRepo.setWorkingIndex(currentIndex)
+        val mediaItem = localRepo.getWorkingList()[currentIndex]
+        googleGooglePhotoRepo.saveSeenPhoto(mediaItem)
 
         job?.cancel()
         job = infiniteScope.launch {
             delay(TimeUnit.SECONDS.toMillis(5))
+            localRepo.step()
             stateFlow.update {
                 it.copy(
                     photoUrls = localRepo.getWorkingList(),
@@ -70,15 +66,15 @@ class GooglePhotoScrollableDisplayPresenter(
 }
 
 class GooglePhotoDisplayLocalRepo {
-    private val allPhotoUrls = mutableListOf<ThingsINeed>()
-    private var workingPhotoUrls: Queue<ThingsINeed> = LinkedList();
+    private val allPhotoUrls = mutableListOf<GoogleMediaItem>()
+    private var workingPhotoUrls: Queue<GoogleMediaItem> = LinkedList();
 
     private var workingMaxIndex = MaxWorkingListSize
     private var currentIndex = 0
 
     private val isTinyMode = allPhotoUrls.size >= MaxWorkingListSize * 1.5
 
-    fun setPhotoList(list: List<ThingsINeed>) {
+    fun setPhotoList(list: List<GoogleMediaItem>) {
         allPhotoUrls.clear()
         allPhotoUrls.addAll(list)
         workingPhotoUrls.clear()
@@ -86,12 +82,12 @@ class GooglePhotoDisplayLocalRepo {
         currentIndex = 0
 
         for (i in 0 until workingMaxIndex) {
-            val index = BetterRandom.getUnusedNext(allPhotoUrls)
+            val index = GetNextGoogleMediaItem.getUnusedNext(allPhotoUrls)
             workingPhotoUrls.add(allPhotoUrls[index])
         }
     }
 
-    fun getWorkingList(): List<ThingsINeed> {
+    fun step() {
         currentIndex++
 
         if (isTinyMode) {
@@ -99,22 +95,25 @@ class GooglePhotoDisplayLocalRepo {
             if (currentIndex >= allPhotoUrls.size) {
                 currentIndex = 0
             }
-            return allPhotoUrls
+            return
         }
 
         if (currentIndex == workingMaxIndex) {
             currentIndex = workingMaxIndex
 
             val newIndex = try {
-                BetterRandom.getUnusedNext(allPhotoUrls)
+                GetNextGoogleMediaItem.getUnusedNext(allPhotoUrls)
             } catch (ex: ArrayIndexOutOfBoundsException) {
-                BetterRandom.reset(workingPhotoUrls)
-                BetterRandom.getUnusedNext(allPhotoUrls)
+                GetNextGoogleMediaItem.reset(workingPhotoUrls)
+                GetNextGoogleMediaItem.getUnusedNext(allPhotoUrls)
             }
             workingPhotoUrls.add(allPhotoUrls[newIndex])
             workingPhotoUrls.remove()
         }
-
+    }
+    
+    fun getWorkingList(): List<GoogleMediaItem> {
+        if(isTinyMode) return allPhotoUrls
         return workingPhotoUrls.toList()
     }
 
