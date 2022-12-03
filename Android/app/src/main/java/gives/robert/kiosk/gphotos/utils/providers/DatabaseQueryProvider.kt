@@ -6,6 +6,7 @@ import com.squareup.sqldelight.db.SqlDriver
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
 import gives.robert.kiosk.gphotos.Database
+import gives.robert.kiosk.gphotos.SeenAlbums
 import gives.robert.kiosk.gphotos.SeenPhotos
 import gives.robert.kiosk.gphotos.SeenPhotosQueries
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +18,10 @@ class DatabaseQueryProvider(context: Context) {
 
     fun photoList(): Flow<List<SeenPhotos>> {
         return database.seenPhotosQueries.selectAll().asFlow().mapToList()
+    }
+
+    fun albumList(): Flow<List<SeenAlbums>> {
+        return database.seenAlbumsQueries.selectAll().asFlow().mapToList()
     }
 
     companion object {

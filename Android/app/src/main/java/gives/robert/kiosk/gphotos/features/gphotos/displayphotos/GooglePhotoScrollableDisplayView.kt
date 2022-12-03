@@ -21,13 +21,10 @@ import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OfflineGooglePhotosRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OnlineGooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
-import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosState
+import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosUiState
 import gives.robert.kiosk.gphotos.utils.*
 import gives.robert.kiosk.gphotos.utils.extensions.observeConnectivityAsFlow
-import gives.robert.kiosk.gphotos.utils.providers.DatabaseQueryProvider
-import gives.robert.kiosk.gphotos.utils.providers.HttpClientProvider
-import gives.robert.kiosk.gphotos.utils.providers.NavigationManager
-import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
+import gives.robert.kiosk.gphotos.utils.providers.*
 
 @Composable
 fun SetupGooglePhotoScrollableView(
@@ -48,7 +45,7 @@ fun SetupGooglePhotoScrollableView(
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
     GooglePhotoScrollableDisplayView(
-        presenter.stateFlow.collectAsState(initial = DisplayPhotosState()),
+        presenter.stateFlow.collectAsState(initial = DisplayPhotosUiState()),
         onScrolledBack = {
             presenter.processEvent(DisplayPhotoEvents.ScrollingStopped(it))
         },
@@ -64,7 +61,7 @@ fun SetupGooglePhotoScrollableView(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GooglePhotoScrollableDisplayView(
-    displayPhotosState: State<DisplayPhotosState>,
+    displayPhotosState: State<DisplayPhotosUiState>,
     onScrolledBack: (Int) -> Unit,
     onScrolling: () -> Unit,
     onAuthLost: () -> Unit,
@@ -129,6 +126,9 @@ fun GooglePhotoScrollableDisplayView(
                     modifier = Modifier.fillParentMaxSize(),
                     loading = {
                         CircularProgressIndicator()
+                    },
+                    onSuccess = {
+
                     },
                     onError = {
                         onAuthLost()

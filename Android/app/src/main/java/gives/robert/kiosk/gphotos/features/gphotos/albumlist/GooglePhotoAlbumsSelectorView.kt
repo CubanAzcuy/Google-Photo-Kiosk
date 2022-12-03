@@ -52,7 +52,8 @@ fun SetupGooglePhotoAlbumsSelectorView(navigationManager: NavigationManager, use
         val offline = OfflineGooglePhotosRepository(DatabaseQueryProvider.getInstance(context).database)
         GooglePhotoRepository(online, offline, context.observeConnectivityAsFlow())
     }
-    val eventState by sharedFlow.collectAsState(null)
+
+    val eventState = sharedFlow.collectAsState(null).value
 
     val listPhotoAlbumState = GooglePhotoAlbumListPresenter(
         googleGooglePhotoRepo = googlePhotoRepo,
@@ -79,7 +80,7 @@ fun EventToViewEffect(
         val effectEvents = eventState ?: return@LaunchedEffect
         when (effectEvents) {
             ListPhotoAlbumEvents.NavigateToPhotoDisplay -> {
-                navigationManager.gotoLocation(NavigationLocations.PHOTOS_DISPLAY)
+                navigationManager.currentLocationFlow.emit(NavigationLocations.PHOTOS_DISPLAY)
             }
             else -> {
                 //no-op

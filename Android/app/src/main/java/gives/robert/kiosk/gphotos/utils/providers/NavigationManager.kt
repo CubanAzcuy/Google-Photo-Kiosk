@@ -8,29 +8,13 @@ import kotlinx.coroutines.launch
 
 enum class NavigationLocations {
     PHOTOS_DISPLAY,
-    ALBUM_SELECT;
+    ALBUM_SELECT,
+    DEFAULT,
+    SETUP_WIFI,
+    FIRST_AUTH;
 }
 
-class NavigationManager(hasAlbums: Boolean) {
+class NavigationManager {
+    val currentLocationFlow = MutableStateFlow(NavigationLocations.DEFAULT)
 
-    private val scope = CoroutineScope(Dispatchers.IO)
-
-    private val _currentLocationFlow: MutableStateFlow<NavigationLocations>
-
-    init {
-        _currentLocationFlow = if(!hasAlbums) {
-            MutableStateFlow(NavigationLocations.PHOTOS_DISPLAY)
-        } else {
-            MutableStateFlow(NavigationLocations.ALBUM_SELECT)
-        }
-    }
-
-    val currentLocationFlow: StateFlow<NavigationLocations> = _currentLocationFlow
-
-
-    fun gotoLocation(locations: NavigationLocations) {
-        scope.launch {
-            _currentLocationFlow.emit(locations)
-        }
-    }
 }
