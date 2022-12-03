@@ -11,12 +11,22 @@ enum class NavigationLocations {
     ALBUM_SELECT;
 }
 
-class NavigationManager {
+class NavigationManager(hasAlbums: Boolean) {
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private val _currentLocationFlow = MutableStateFlow(NavigationLocations.ALBUM_SELECT)
+    private val _currentLocationFlow: MutableStateFlow<NavigationLocations>
+
+    init {
+        _currentLocationFlow = if(!hasAlbums) {
+            MutableStateFlow(NavigationLocations.PHOTOS_DISPLAY)
+        } else {
+            MutableStateFlow(NavigationLocations.ALBUM_SELECT)
+        }
+    }
+
     val currentLocationFlow: StateFlow<NavigationLocations> = _currentLocationFlow
+
 
     fun gotoLocation(locations: NavigationLocations) {
         scope.launch {

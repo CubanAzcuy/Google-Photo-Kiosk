@@ -6,13 +6,15 @@ import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPho
 import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleMediaItem
 import gives.robert.kiosk.gphotos.utils.BasePresenter
-import gives.robert.kiosk.gphotos.utils.GetNextGoogleMediaItem
+import gives.robert.kiosk.gphotos.utils.ItemHolderRandom
+import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.update
 import java.util.*
 import java.util.concurrent.TimeUnit
 
 class GooglePhotoScrollableDisplayPresenter(
+    private val userPrefs: UserPreferences,
     private val googleGooglePhotoRepo: GooglePhotoRepository,
     private var localRepo: GooglePhotoDisplayLocalRepo = GooglePhotoDisplayLocalRepo()
 ) : BasePresenter<DisplayPhotoEvents, DisplayPhotosState, DisplayPhotosEffect>() {
@@ -31,6 +33,9 @@ class GooglePhotoScrollableDisplayPresenter(
             is DisplayPhotoEvents.ScrollingStopped -> {
                 onScrollDone(event.currentIndex)
             }
+            DisplayPhotoEvents.OnAuthLost -> {
+                userPrefs.clearAuthToken()
+            }
             else -> {
                 job?.cancel()
             }
@@ -42,87 +47,107 @@ class GooglePhotoScrollableDisplayPresenter(
         localRepo.setPhotoList(photoDataList)
 
         stateFlow.update {
-            it.copy(photoUrls = localRepo.getWorkingList())
+            it.copy(photoUrls = localRepo.getOnScreenPhotos())
         }
     }
 
     private suspend fun onScrollDone(currentIndex: Int) {
-        localRepo.setWorkingIndex(currentIndex)
-        val mediaItem = localRepo.getWorkingList()[currentIndex]
+        localRepo.setCurrentlyDisplayPhotoIndex(currentIndex)
+        val mediaItem = localRepo.getOnScreenPhotos()[currentIndex]
         googleGooglePhotoRepo.saveSeenPhoto(mediaItem)
 
         job?.cancel()
         job = infiniteScope.launch {
             delay(TimeUnit.SECONDS.toMillis(5))
-            localRepo.step()
+            localRepo.prepareListForNextPhotoToDisplay()
             stateFlow.update {
                 it.copy(
-                    photoUrls = localRepo.getWorkingList(),
-                    currentIndex = localRepo.getWorkingIndex()
+                    photoUrls = localRepo.getOnScreenPhotos(),
+                    currentIndex = localRepo.getCurrentlyDisplayPhotoIndex()
                 )
             }
         }
     }
 }
 
-class GooglePhotoDisplayLocalRepo {
+class GooglePhotoDisplayLocalRepo(
+    private val itemHolderRandom: ItemHolderRandom<GoogleMediaItem> = ItemHolderRandom()
+) {
+
     private val allPhotoUrls = mutableListOf<GoogleMediaItem>()
-    private var workingPhotoUrls: Queue<GoogleMediaItem> = LinkedList();
 
-    private var workingMaxIndex = MaxWorkingListSize
-    private var currentIndex = 0
+    private var activelyDisplayedPhotos: Queue<GoogleMediaItem> = LinkedList();
+    private var activelyDisplayedPhotoQueueSize = MaxWorkingListSize
 
-    private val isTinyMode = allPhotoUrls.size >= MaxWorkingListSize * 1.5
+    private var currentlyDisplayPhotoIndex = 0
+
+    private val isTinyMode
+        get() = allPhotoUrls.size <= MaxWorkingListSize * 1.5
 
     fun setPhotoList(list: List<GoogleMediaItem>) {
         allPhotoUrls.clear()
         allPhotoUrls.addAll(list)
-        workingPhotoUrls.clear()
-        workingMaxIndex = if (MaxWorkingListSize > list.size) list.size else MaxWorkingListSize
-        currentIndex = 0
 
-        for (i in 0 until workingMaxIndex) {
-            val index = GetNextGoogleMediaItem.getUnusedNext(allPhotoUrls)
-            workingPhotoUrls.add(allPhotoUrls[index])
-        }
-    }
+        itemHolderRandom.setup(list)
 
-    fun step() {
-        currentIndex++
+        activelyDisplayedPhotos.clear()
+        activelyDisplayedPhotoQueueSize =
+            if (MaxWorkingListSize > list.size) list.size else MaxWorkingListSize
+        currentlyDisplayPhotoIndex = 0
+
 
         if (isTinyMode) {
-            currentIndex++
-            if (currentIndex >= allPhotoUrls.size) {
-                currentIndex = 0
-            }
+            activelyDisplayedPhotos.addAll(allPhotoUrls.shuffled())
             return
         }
+        for (i in 0 until activelyDisplayedPhotoQueueSize) {
+            activelyDisplayedPhotos.add(itemHolderRandom.nextRandomItem())
+        }
 
-        if (currentIndex == workingMaxIndex) {
-            currentIndex = workingMaxIndex
+    }
 
-            val newIndex = try {
-                GetNextGoogleMediaItem.getUnusedNext(allPhotoUrls)
-            } catch (ex: ArrayIndexOutOfBoundsException) {
-                GetNextGoogleMediaItem.reset(workingPhotoUrls)
-                GetNextGoogleMediaItem.getUnusedNext(allPhotoUrls)
-            }
-            workingPhotoUrls.add(allPhotoUrls[newIndex])
-            workingPhotoUrls.remove()
+    fun prepareListForNextPhotoToDisplay() {
+        currentlyDisplayPhotoIndex++
+
+        if (isTinyMode) {
+            requestNextPhotoToDisplayForSmallList()
+        } else {
+            requestNextPhotoToDisplayForLargerList()
         }
     }
-    
-    fun getWorkingList(): List<GoogleMediaItem> {
+
+    private fun requestNextPhotoToDisplayForLargerList() {
+        if (currentlyDisplayPhotoIndex < activelyDisplayedPhotos.size) return;
+
+        var item = itemHolderRandom.nextRandomItem()
+        item = if (item == null) {
+            itemHolderRandom.setup(allPhotoUrls, activelyDisplayedPhotos.toList())
+            itemHolderRandom.nextRandomItem()
+        } else {
+            item
+        }
+
+        activelyDisplayedPhotos.add(item)
+        activelyDisplayedPhotos.remove()
+    }
+
+    private fun requestNextPhotoToDisplayForSmallList() {
+        if (currentlyDisplayPhotoIndex >= allPhotoUrls.size) {
+            currentlyDisplayPhotoIndex = 0
+        }
+    }
+
+    fun getOnScreenPhotos(): List<GoogleMediaItem> {
         if(isTinyMode) return allPhotoUrls
-        return workingPhotoUrls.toList()
+        return activelyDisplayedPhotos.toList()
     }
 
-    fun getWorkingIndex(): Int {
-        return currentIndex
+    fun getCurrentlyDisplayPhotoIndex(): Int {
+        return currentlyDisplayPhotoIndex
     }
 
-    fun setWorkingIndex(currentIndex: Int) {
-        this.currentIndex = currentIndex
+    fun setCurrentlyDisplayPhotoIndex(currentIndex: Int) {
+        this.currentlyDisplayPhotoIndex = currentIndex
     }
 
     companion object {

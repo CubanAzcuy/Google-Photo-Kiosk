@@ -41,7 +41,9 @@ fun SetupGooglePhotoScrollableView(
         GooglePhotoRepository(online, offline, context.observeConnectivityAsFlow())
     }
     val presenter = remember {
-        GooglePhotoScrollableDisplayPresenter(googleGooglePhotoRepo = googlePhotoRepo)
+        GooglePhotoScrollableDisplayPresenter(
+            userPrefs = userPrefs,
+            googleGooglePhotoRepo = googlePhotoRepo)
     }
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
@@ -52,7 +54,11 @@ fun SetupGooglePhotoScrollableView(
         },
         onScrolling = {
             presenter.processEvent(DisplayPhotoEvents.Scrolling)
-        })
+        },
+        onAuthLost = {
+            presenter.processEvent(DisplayPhotoEvents.OnAuthLost)
+        }
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -60,7 +66,8 @@ fun SetupGooglePhotoScrollableView(
 fun GooglePhotoScrollableDisplayView(
     displayPhotosState: State<DisplayPhotosState>,
     onScrolledBack: (Int) -> Unit,
-    onScrolling: () -> Unit
+    onScrolling: () -> Unit,
+    onAuthLost: () -> Unit,
 ) {
     val scrollViewState = rememberLazyListState()
     val photoKioskState = displayPhotosState.value
@@ -124,7 +131,7 @@ fun GooglePhotoScrollableDisplayView(
                         CircularProgressIndicator()
                     },
                     onError = {
-                        val sdfasdfsda = ""
+                        onAuthLost()
                     },
                     contentDescription = "stringResource(R.string.description)"
                 )

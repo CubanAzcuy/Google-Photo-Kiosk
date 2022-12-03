@@ -9,6 +9,9 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import gives.robert.kiosk.gphotos.utils.dataStoreFileName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -21,19 +24,20 @@ class UserPreferences(context: Context) {
 
     private val dataStore = getDataStore(context)
 
-    var userPreferencesRecord = UserPreferencesRecord()
+    val userPreferencesRecord
+        get() = preferencesFlow.value
 
-    val preferencesFlow = dataStore.data.map {
-        UserPreferencesRecord(
-            it.toPreferences()[authStringKey],
-            it.toPreferences()[savedAlbumsKeys] ?: emptySet()
-        )
-    }
+    val preferencesFlow = MutableStateFlow(UserPreferencesRecord())
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
-            preferencesFlow.collect {
-                userPreferencesRecord = it
+            dataStore.data.map {
+                UserPreferencesRecord(
+                    it.toPreferences()[authStringKey],
+                    it.toPreferences()[savedAlbumsKeys] ?: emptySet()
+                )
+            }.collect{
+                preferencesFlow.emit(it)
             }
         }
     }
@@ -60,9 +64,22 @@ class UserPreferences(context: Context) {
         private val authStringKey = stringPreferencesKey("auth_string_key")
         private val savedAlbumsKeys = stringSetPreferencesKey("saved_albums_key")
 
+        private var instance: UserPreferences? = null
+
         fun getDataStore(context: Context): DataStore<Preferences> =
             gives.robert.kiosk.gphotos.utils.getDataStore(
                 producePath = { context.filesDir.resolve(dataStoreFileName).absolutePath }
             )
+
+        fun getInstance(context: Context): UserPreferences {
+            if (instance == null) {
+                init(context)
+            }
+            return instance!!
+        }
+
+        fun init(context: Context) {
+            instance = UserPreferences(context)
+        }
     }
 }

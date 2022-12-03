@@ -46,10 +46,12 @@ class OnlineGooglePhotoRepository(
     private fun googleMediaItemsWTtoGoogleMediaItems(
         mediaItemResponse: MediaItemSearchResponseWT,
         albumId: String
-    ) = mediaItemResponse.mediaItems.map { googleMediaItem ->
+    ) = mediaItemResponse.mediaItems.filter {
+        it.baseUrl != null
+    }.map { googleMediaItem ->
         GoogleMediaItem(
             googleMediaItem.id,
-            googleMediaItem.baseUrl,
+            "${googleMediaItem.baseUrl}=d",
             googleMediaItem.mimeType,
             albumId
         )
@@ -62,7 +64,7 @@ class OnlineGooglePhotoRepository(
                     authorizeHttpRequestBuilder(this, bearerToken)
                 }
                 response.albums.map {
-                    GoogleAlbum(it.id, it.coverPhotoBaseUrl, it.title)
+                    GoogleAlbum(it.id, "${it.coverPhotoBaseUrl}=d", it.title)
                 }
             } catch (clientException: ClientRequestException) {
                 val exceptionResponse = clientException.response

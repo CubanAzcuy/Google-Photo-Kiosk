@@ -1,5 +1,6 @@
 package gives.robert.kiosk.gphotos.features.config.data
 
+import android.util.Log
 import gives.robert.kiosk.gphotos.features.config.data.models.wt.AccessTokenResponseWT
 import gives.robert.kiosk.gphotos.features.config.data.models.wt.TokenRequestWT
 import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
@@ -26,6 +27,7 @@ class AuthRepository(
                         append("X-Requested-With", "auth_server_token")
                     }
                 }
+                Log.d("YOUR_IT", response.access_token)
                 userPrefs.saveAuthToken(response.access_token)
             } catch (ex: Exception) {
                 when {

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class MediaItems(
     var id: String,
     var productUrl: String,
-    var baseUrl: String,
+    var baseUrl: String?,
     var mimeType: String,
     var mediaMetadata: MediaMetadata? = MediaMetadata(),
     var filename: String

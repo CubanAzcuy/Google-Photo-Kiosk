@@ -166,8 +166,8 @@ private fun GooglePhotoAlbumsSelectorView(
         items(listPhotoAlbum.albums, itemContent = { item ->
             Box(
                 modifier = Modifier
-                    .width(128.dp)
-                    .height(128.dp)
+                    .width(250.dp)
+                    .height(250.dp)
                     .background(Color.Black)
                     .clickable {
                         coroutineScope.launch {

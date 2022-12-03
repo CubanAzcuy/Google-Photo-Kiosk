@@ -7,6 +7,14 @@ plugins {
 apply from: 'properties.gradle'
 
 android {
+    signingConfigs {
+        release {
+            storeFile file('/Users/robertgross/Documents/git/android/925/Google Photo Kiosk/Android/kiosk_key_store.jks')
+            keyAlias keyAlias
+            storePassword storePassword
+            keyPassword keyPassword
+        }
+    }
     compileSdk 33
 
     defaultConfig {
@@ -20,6 +28,7 @@ android {
         vectorDrawables {
             useSupportLibrary true
         }
+        signingConfig signingConfigs.release
     }
 
     buildTypes {
@@ -90,6 +99,7 @@ dependencies {
     implementation 'io.ktor:ktor-client-cio:1.2.2'
 
     implementation "com.squareup.sqldelight:android-driver:1.5.4"
+    implementation "com.squareup.sqldelight:coroutines-extensions-jvm:1.5.4"
 
     testImplementation 'junit:junit:4.13.2'
 
