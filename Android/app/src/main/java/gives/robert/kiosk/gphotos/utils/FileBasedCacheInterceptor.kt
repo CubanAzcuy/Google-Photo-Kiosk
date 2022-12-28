@@ -8,10 +8,15 @@ import coil.intercept.Interceptor
 import coil.request.ErrorResult
 import coil.request.ImageResult
 import coil.request.SuccessResult
+import gives.robert.kiosk.gphotos.features.gphotos.data.OnlineGooglePhotoRepository
+import gives.robert.kiosk.gphotos.features.gphotos.data.models.wt.MediaItemSearchResponseWT
+import gives.robert.kiosk.gphotos.features.gphotos.data.models.wt.MediaItems
 import gives.robert.kiosk.gphotos.utils.extensions.downloadFile
 import gives.robert.kiosk.gphotos.utils.extensions.getFileNameFromDirectory
+import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 import io.ktor.client.*
 import io.ktor.client.features.*
+import io.ktor.client.request.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -19,8 +24,12 @@ import java.io.File
 class FileBasedCacheInterceptor(
     private val context: Context,
     private val client: HttpClient,
+    private val userPrefs: UserPreferences,
     private val cache: LruCache<String, Drawable>
 ) : Interceptor {
+
+    private val bearerToken
+        get() = "Bearer ${userPrefs.userPreferencesRecord.authToken}"
 
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
 
@@ -47,7 +56,10 @@ class FileBasedCacheInterceptor(
             }
 
             try {
-                client.downloadFile(path, file)
+                val url = client.get<MediaItems>("${OnlineGooglePhotoRepository.googlePhotosV1UrlString}/mediaItems/${chain.request.memoryCacheKey!!.key}") {
+                    headers.append("Authorization", bearerToken)
+                }.baseUrl
+                client.downloadFile(url!!, file)
             } catch (ex: Throwable) {
                 val adsfsadf = (ex as ClientRequestException).response
                 return@withContext ErrorResult(

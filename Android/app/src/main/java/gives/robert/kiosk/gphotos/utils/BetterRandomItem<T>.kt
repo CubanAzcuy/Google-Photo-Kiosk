@@ -1,5 +1,8 @@
 package gives.robert.kiosk.gphotos.utils
 
+import kotlin.random.Random
+import kotlin.random.nextInt
+
 interface IdItem {
     val id: Any
 }
@@ -7,6 +10,7 @@ interface IdItem {
 class ItemHolderRandom<T : IdItem> {
 
     private val workingItems = mutableListOf<T>()
+    private val random = Random(System.currentTimeMillis().toInt())
 
     fun setup(allItems: List<T>, onScreenItems: List<T> = emptyList()) {
 
@@ -28,7 +32,7 @@ class ItemHolderRandom<T : IdItem> {
 
     fun nextRandomItem(): T? {
         return try {
-            val index = workingItems.indices.random()
+            val index = random.nextInt(workingItems.indices)
             val item = workingItems[index]
             workingItems.removeAt(index)
             item

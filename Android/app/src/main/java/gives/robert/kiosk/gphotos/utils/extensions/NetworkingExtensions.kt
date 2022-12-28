@@ -10,6 +10,7 @@ import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleAlbu
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleMediaItem
 import gives.robert.kiosk.gphotos.utils.FileBasedCacheInterceptor
 import gives.robert.kiosk.gphotos.utils.providers.HttpClientProvider.client
+import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -28,9 +29,14 @@ suspend fun HttpClient.downloadFile(path: String, rootDir: String) {
     downloadFile(path, file)
 }
 
-suspend fun HttpClient.downloadFile(path: String, file: File) {
+suspend fun HttpClient.downloadFile(path: String, file: File, httpRequestBuilderBlock :((HttpRequestBuilder)-> Unit)? = null) {
     runBlocking {
-        val httpResponse = client.get<HttpResponse>(path)
+        val httpResponse = client.get<HttpResponse>(path) {
+            httpRequestBuilderBlock?.let {
+                it(this)
+            }
+        }
+
         val responseBody = httpResponse.readBytes()
         file.writeBytes(responseBody)
     }
@@ -47,9 +53,10 @@ fun Context.defaultImageLoader(): ImageLoader {
         .components {
             add(
                 FileBasedCacheInterceptor(
-                    this@defaultImageLoader,
-                    client,
-                    lruCache,
+                    context = this@defaultImageLoader,
+                    client = client,
+                    userPrefs = UserPreferences.getInstance(this@defaultImageLoader),
+                    cache = lruCache,
                 )
             )
         }
@@ -61,6 +68,7 @@ fun Context.defaultImageLoader(): ImageLoader {
 fun GoogleAlbum.toImageLoadingRequest(builder: ImageRequest.Builder): ImageRequest {
     return builder
         .data(coverPhotoUrl)
+        .memoryCacheKey(id)
         .diskCacheKey("$title.webp")
         .build()
 }
@@ -68,6 +76,7 @@ fun GoogleAlbum.toImageLoadingRequest(builder: ImageRequest.Builder): ImageReque
 fun GoogleMediaItem.toImageLoadingRequest(builder: ImageRequest.Builder): ImageRequest {
     return builder
         .data(baseUrl)
+        .memoryCacheKey(id)
         .diskCacheKey(fileName)
         .build()
 }

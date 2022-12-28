@@ -59,6 +59,17 @@ fun NavigationLocation(
 
     val updateLocation = requestedLocations.currentLocationFlow.collectAsState().value
 
+    println("------------------------------------------")
+    println("---------hasInternetConnection: ${hasInternetConnection}----------")
+    println("---------isAuthenticated: ${isAuthenticated}----------")
+    println("---------hasPhotoCache: ${hasPhotoCache}----------")
+    println("---------hasAlbumCache: ${hasAlbumCache}----------")
+    println("---------setupWifi: ${setupWifi}----------")
+    println("---------mustAuthenticate: ${mustAuthenticate}----------")
+    println("---------mustSelectPhotos: ${mustSelectPhotos}----------")
+    println("---------updateLocation: ${updateLocation}----------")
+    println("------------------------------------------")
+
     LaunchedEffect(setupWifi, mustAuthenticate, mustSelectPhotos, updateLocation) {
         navigationState.value = when {
             setupWifi -> {
