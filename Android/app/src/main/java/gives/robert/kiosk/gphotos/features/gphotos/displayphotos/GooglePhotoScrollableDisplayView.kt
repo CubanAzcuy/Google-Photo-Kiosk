@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -16,13 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.Coil
 import coil.compose.SubcomposeAsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
 import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OfflineGooglePhotosRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OnlineGooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotoEvents
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosUiState
 import gives.robert.kiosk.gphotos.utils.*
+import gives.robert.kiosk.gphotos.utils.extensions.defaultImageLoader
 import gives.robert.kiosk.gphotos.utils.extensions.observeConnectivityAsFlow
 import gives.robert.kiosk.gphotos.utils.providers.*
 
@@ -32,20 +37,30 @@ fun SetupGooglePhotoScrollableView(
     userPrefs: UserPreferences
 ) {
     val context = LocalContext.current
+    Coil.setImageLoader(context.defaultImageLoader())
+
+    val coilProvider = remember {
+        CoilProvider.getInstance(context)
+    }
+
     val googlePhotoRepo = remember {
-        val online = OnlineGooglePhotoRepository(HttpClientProvider.client, userPrefs)
+        val online = OnlineGooglePhotoRepository(HttpClientProvider.client, userPrefs, DatabaseQueryProvider.getInstance(context).database)
         val offline = OfflineGooglePhotosRepository(DatabaseQueryProvider.getInstance(context).database)
         GooglePhotoRepository(online, offline, context.observeConnectivityAsFlow())
     }
+
     val presenter = remember {
         GooglePhotoScrollableDisplayPresenter(
             userPrefs = userPrefs,
-            googleGooglePhotoRepo = googlePhotoRepo)
+            googleGooglePhotoRepo = googlePhotoRepo,
+            coilProvider = coilProvider
+        )
     }
 
     presenter.processEvent(DisplayPhotoEvents.GetPhotos)
+    val radsfasdf = presenter.stateFlow.collectAsState(initial = DisplayPhotosUiState())
     GooglePhotoScrollableDisplayView(
-        presenter.stateFlow.collectAsState(initial = DisplayPhotosUiState()),
+        radsfasdf,
         onScrolledBack = {
             presenter.processEvent(DisplayPhotoEvents.ScrollingStopped(it))
         },
@@ -69,32 +84,7 @@ fun GooglePhotoScrollableDisplayView(
     val scrollViewState = rememberLazyListState()
     val photoKioskState = displayPhotosState.value
 
-    val fullyVisibleIndices = remember {
-        derivedStateOf {
-            val layoutInfo = scrollViewState.layoutInfo
-            val visibleItemsInfo = layoutInfo.visibleItemsInfo
-            if (visibleItemsInfo.isEmpty()) {
-                emptyList()
-            } else {
-                val fullyVisibleItemsInfo = visibleItemsInfo.toMutableList()
-
-                val lastItem = fullyVisibleItemsInfo.last()
-
-                val viewportHeight = layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset
-
-                if (lastItem.offset + lastItem.size > viewportHeight) {
-                    fullyVisibleItemsInfo.removeLast()
-                }
-
-                val firstItemIfLeft = fullyVisibleItemsInfo.firstOrNull()
-                if (firstItemIfLeft != null && firstItemIfLeft.offset < layoutInfo.viewportStartOffset) {
-                    fullyVisibleItemsInfo.removeFirst()
-                }
-
-                fullyVisibleItemsInfo.map { it.index }
-            }
-        }
-    }
+    val fullyVisibleIndices = getVisibleImagesForListView(scrollViewState)
 
     if (!scrollViewState.isScrollInProgress) {
         if (fullyVisibleIndices.value.isNotEmpty()) {
@@ -122,13 +112,13 @@ fun GooglePhotoScrollableDisplayView(
                 contentAlignment = Alignment.Center
             ) {
                 SubcomposeAsyncImage(
-                    model = it.baseUrl,
+                    model = it.request,
                     modifier = Modifier.fillParentMaxSize(),
                     loading = {
                         CircularProgressIndicator()
                     },
                     onSuccess = {
-
+                        val asdf = ""
                     },
                     onError = {
                         onAuthLost()
@@ -138,4 +128,35 @@ fun GooglePhotoScrollableDisplayView(
             }
         }
     }
+}
+
+@Composable
+private fun getVisibleImagesForListView(scrollViewState: LazyListState): State<List<Int>> {
+    val fullyVisibleIndices = remember {
+        derivedStateOf {
+            val layoutInfo = scrollViewState.layoutInfo
+            val visibleItemsInfo = layoutInfo.visibleItemsInfo
+            if (visibleItemsInfo.isEmpty()) {
+                emptyList()
+            } else {
+                val fullyVisibleItemsInfo = visibleItemsInfo.toMutableList()
+
+                val lastItem = fullyVisibleItemsInfo.last()
+
+                val viewportHeight = layoutInfo.viewportEndOffset + layoutInfo.viewportStartOffset
+
+                if (lastItem.offset + lastItem.size > viewportHeight) {
+                    fullyVisibleItemsInfo.removeLast()
+                }
+
+                val firstItemIfLeft = fullyVisibleItemsInfo.firstOrNull()
+                if (firstItemIfLeft != null && firstItemIfLeft.offset < layoutInfo.viewportStartOffset) {
+                    fullyVisibleItemsInfo.removeFirst()
+                }
+
+                fullyVisibleItemsInfo.map { it.index }
+            }
+        }
+    }
+    return fullyVisibleIndices
 }

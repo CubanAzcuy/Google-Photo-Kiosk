@@ -1,11 +1,15 @@
 package gives.robert.kiosk.gphotos.features.gphotos.displayphotos
 
+import coil.request.ImageRequest
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleMediaItem
 import gives.robert.kiosk.gphotos.utils.ItemHolderRandom
+import gives.robert.kiosk.gphotos.utils.extensions.toImageLoadingRequest
+import gives.robert.kiosk.gphotos.utils.providers.CoilProvider
 import java.util.*
 
 class GooglePhotoDisplayLocalRepo(
-    private val itemHolderRandom: ItemHolderRandom<GoogleMediaItem> = ItemHolderRandom()
+    private val itemHolderRandom: ItemHolderRandom<GoogleMediaItem> = ItemHolderRandom(),
+    private val coilProvider: CoilProvider
 ) {
 
     private val allPhotoUrls = mutableListOf<GoogleMediaItem>()
@@ -51,7 +55,7 @@ class GooglePhotoDisplayLocalRepo(
     }
 
     private fun requestNextPhotoToDisplayForLargerList() {
-        if (currentlyDisplayPhotoIndex < activelyDisplayedPhotos.size) return;
+        if (currentlyDisplayPhotoIndex < activelyDisplayedPhotos.size) return
 
         var item = itemHolderRandom.nextRandomItem()
         item = if (item == null) {
@@ -71,9 +75,18 @@ class GooglePhotoDisplayLocalRepo(
         }
     }
 
-    fun getOnScreenPhotos(): List<GoogleMediaItem> {
+    fun getOnScreenPhotosForProcessing(): List<GoogleMediaItem> {
         if(isTinyMode) return allPhotoUrls
         return activelyDisplayedPhotos.toList()
+    }
+
+    fun getOnScreenPhotosForDisplay(): List<MediaItem> {
+        if(isTinyMode) return allPhotoUrls.map {
+            it.toMediaItem(coilProvider.imageBuilder)
+        }
+        return activelyDisplayedPhotos.map {
+            it.toMediaItem(coilProvider.imageBuilder)
+        }
     }
 
     fun getCurrentlyDisplayPhotoIndex(): Int {
@@ -84,7 +97,29 @@ class GooglePhotoDisplayLocalRepo(
         this.currentlyDisplayPhotoIndex = currentIndex
     }
 
+    fun hasCache(): Boolean = allPhotoUrls.isNotEmpty()
+
     companion object {
         const val MaxWorkingListSize = 25
     }
 }
+
+private fun GoogleMediaItem.toMediaItem(imageBuilder: ImageRequest.Builder): MediaItem {
+    return MediaItem(
+        id = id,
+        baseUrl = baseUrl,
+        fileName = fileName,
+        mimeType = mimeType,
+        albumId = albumId,
+        request = toImageLoadingRequest(imageBuilder)
+    )
+}
+
+data class MediaItem(
+    val id: String,
+    val baseUrl: String,
+    val fileName: String,
+    val mimeType: String,
+    val albumId: String,
+    val request: ImageRequest
+)

@@ -1,7 +1,8 @@
 package gives.robert.kiosk.gphotos
 
+import android.util.Log
 import coil.Coil
-import gives.robert.kiosk.gphotos.utils.providers.ImageLoaderProvider
+import gives.robert.kiosk.gphotos.utils.extensions.defaultImageLoader
 import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 
 class Application: android.app.Application() {
@@ -9,7 +10,8 @@ class Application: android.app.Application() {
         super.onCreate()
         UserPreferences.init(context = applicationContext)
 
-        val imageLoader = ImageLoaderProvider.newImageLoader(this)
+        Log.d("APP", "LAUNCHED")
+        val imageLoader = defaultImageLoader()
         Coil.setImageLoader(imageLoader)
     }
 }

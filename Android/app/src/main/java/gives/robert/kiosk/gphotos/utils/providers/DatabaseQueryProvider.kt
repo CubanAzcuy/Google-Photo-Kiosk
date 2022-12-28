@@ -5,23 +5,21 @@ import com.squareup.sqldelight.android.AndroidSqliteDriver
 import com.squareup.sqldelight.db.SqlDriver
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
+import gives.robert.kiosk.gphotos.Albums
 import gives.robert.kiosk.gphotos.Database
-import gives.robert.kiosk.gphotos.SeenAlbums
-import gives.robert.kiosk.gphotos.SeenPhotos
-import gives.robert.kiosk.gphotos.SeenPhotosQueries
+import gives.robert.kiosk.gphotos.Photos
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 
 class DatabaseQueryProvider(context: Context) {
-    private val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context, "test.db")
+    private val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context, "photo_db.db")
     val database = Database(driver)
 
-    fun photoList(): Flow<List<SeenPhotos>> {
-        return database.seenPhotosQueries.selectAll().asFlow().mapToList()
+    fun photoList(): Flow<List<Photos>> {
+        return database.photosQueries.selectAll().asFlow().mapToList()
     }
 
-    fun albumList(): Flow<List<SeenAlbums>> {
-        return database.seenAlbumsQueries.selectAll().asFlow().mapToList()
+    fun albumList(): Flow<List<Albums>> {
+        return database.albumsQueries.selectAll().asFlow().mapToList()
     }
 
     companion object {

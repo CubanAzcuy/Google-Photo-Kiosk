@@ -11,7 +11,7 @@ class OfflineGooglePhotosRepository(
 ) {
     suspend fun fetchAlbums(): List<GoogleAlbum> {
         return withContext(Dispatchers.IO) {
-            database.seenAlbumsQueries.selectAll().executeAsList().map {
+            database.albumsQueries.selectAllCached(true).executeAsList().map {
                 GoogleAlbum(it.id, it.cover_photo_url, it.title)
             }
         }
@@ -19,20 +19,23 @@ class OfflineGooglePhotosRepository(
 
     suspend fun fetchPhotos(): List<GoogleMediaItem> {
         return withContext(Dispatchers.IO) {
-            database.seenPhotosQueries.selectAll().executeAsList().map {
-                GoogleMediaItem(it.id, it.url, it.mime_type, it.album_id,)
+            database.photosQueries.selectAllCached(true).executeAsList().map {
+                GoogleMediaItem(
+                    id = it.id,
+                    baseUrl = it.url,
+                    mimeType = it.mime_type,
+                    albumId = it.album_id,
+                    fileName = it.file_name)
             }
         }
     }
 
-    suspend fun saveSeenAlbums(googleAlbums: List<GoogleAlbum>) {
+    suspend fun updateAlbumList(googleAlbums: List<GoogleAlbum>) {
         withContext(Dispatchers.IO) {
-            database.seenAlbumsQueries.transaction {
+            database.albumsQueries.transaction {
                 googleAlbums.forEach {
-                    database.seenAlbumsQueries.insert(
+                    database.albumsQueries.updateDownloadedStatus(
                         id = it.id,
-                        title = it.title,
-                        cover_photo_url = it.coverPhotoUrl
                     )
                 }
             }
@@ -41,11 +44,9 @@ class OfflineGooglePhotosRepository(
 
     suspend fun saveSeenPhoto(mediaItem: GoogleMediaItem) {
         withContext(Dispatchers.IO) {
-            database.seenPhotosQueries.insert(
+            database.photosQueries
+            database.photosQueries.updateDownloadedStatus(
                 id = mediaItem.id,
-                album_id = mediaItem.albumId,
-                url = mediaItem.baseUrl,
-                mime_type = mediaItem.mimeType
             )
         }
     }

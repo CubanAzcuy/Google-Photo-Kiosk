@@ -2,10 +2,7 @@ package gives.robert.kiosk.gphotos.utils.providers
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.core.*
 import gives.robert.kiosk.gphotos.utils.dataStoreFileName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +14,8 @@ import kotlinx.coroutines.launch
 
 data class UserPreferencesRecord(
     val authToken: String? = null,
-    val selectedAlbumIds: Set<String> = emptySet()
+    val selectedAlbumIds: Set<String> = emptySet(),
+    val shouldFetch: Boolean = false,
 )
 
 class UserPreferences(context: Context) {
@@ -34,7 +32,8 @@ class UserPreferences(context: Context) {
             dataStore.data.map {
                 UserPreferencesRecord(
                     it.toPreferences()[authStringKey],
-                    it.toPreferences()[savedAlbumsKeys] ?: emptySet()
+                    it.toPreferences()[savedAlbumsKeys] ?: emptySet(),
+                    it.toPreferences()[shouldFetchKey] ?: false
                 )
             }.collect{
                 preferencesFlow.emit(it)
@@ -60,9 +59,16 @@ class UserPreferences(context: Context) {
         }
     }
 
+    suspend fun setShouldFetch(shouldFetch: Boolean) {
+        dataStore.edit {
+            it[shouldFetchKey] = shouldFetch
+        }
+    }
+
     companion object {
         private val authStringKey = stringPreferencesKey("auth_string_key")
         private val savedAlbumsKeys = stringSetPreferencesKey("saved_albums_key")
+        private val shouldFetchKey = booleanPreferencesKey("should_fetch_key")
 
         private var instance: UserPreferences? = null
 

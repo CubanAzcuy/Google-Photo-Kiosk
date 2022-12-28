@@ -1,0 +1,22 @@
+CREATE TABLE Albums (
+  id TEXT NOT NULL PRIMARY KEY,
+  title TEXT NOT NULL,
+  cover_photo_url TEXT NOT NULL,
+  downloaded INTEGER AS Boolean DEFAULT 0 NOT NULL
+);
+
+selectAll:
+SELECT *
+FROM Albums;
+
+selectAllCached:
+SELECT *
+FROM Albums
+WHERE downloaded = :cached;
+
+insert:
+INSERT OR REPLACE INTO Albums(id, title, cover_photo_url, downloaded)
+VALUES (?, ?, ?, ?);
+
+updateDownloadedStatus:
+UPDATE Albums SET downloaded = TRUE WHERE id = :id;

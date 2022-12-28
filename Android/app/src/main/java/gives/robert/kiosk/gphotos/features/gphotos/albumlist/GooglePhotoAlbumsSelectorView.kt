@@ -26,7 +26,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.ConstraintSet
+import coil.Coil
 import coil.compose.SubcomposeAsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.ImageResult
+import coil.request.Parameters
 import gives.robert.kiosk.gphotos.R
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.AlbumInfo
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumEvents
@@ -35,6 +40,7 @@ import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OfflineGooglePhotosRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OnlineGooglePhotoRepository
 import gives.robert.kiosk.gphotos.ui.theme.MyApplicationTheme
+import gives.robert.kiosk.gphotos.utils.extensions.defaultImageLoader
 import gives.robert.kiosk.gphotos.utils.extensions.observeConnectivityAsFlow
 import gives.robert.kiosk.gphotos.utils.providers.*
 import kotlinx.coroutines.CoroutineScope
@@ -44,13 +50,19 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun SetupGooglePhotoAlbumsSelectorView(navigationManager: NavigationManager, userPrefs: UserPreferences) {
+
     val context = LocalContext.current
+    Coil.setImageLoader(context.defaultImageLoader())
+
     val sharedFlow = remember { MutableSharedFlow<ListPhotoAlbumEvents>() }
     val localRepo = remember { GooglePhotoAlbumListLocalRepo(userPrefs) }
     val googlePhotoRepo = remember {
-        val online = OnlineGooglePhotoRepository(HttpClientProvider.client, userPrefs)
+        val online = OnlineGooglePhotoRepository(HttpClientProvider.client, userPrefs, DatabaseQueryProvider.getInstance(context).database)
         val offline = OfflineGooglePhotosRepository(DatabaseQueryProvider.getInstance(context).database)
         GooglePhotoRepository(online, offline, context.observeConnectivityAsFlow())
+    }
+    val coilProvider = remember {
+        CoilProvider.getInstance(context)
     }
 
     val eventState = sharedFlow.collectAsState(null).value
@@ -58,7 +70,8 @@ fun SetupGooglePhotoAlbumsSelectorView(navigationManager: NavigationManager, use
     val listPhotoAlbumState = GooglePhotoAlbumListPresenter(
         googleGooglePhotoRepo = googlePhotoRepo,
         localRepo = localRepo,
-        events = eventState
+        coilProvider = coilProvider,
+        events = eventState,
     )
 
     EventToViewEffect(eventState, navigationManager)
@@ -155,61 +168,63 @@ private fun GooglePhotoAlbumsSelectorView(
     val scrollViewState = rememberLazyGridState()
     val listPhotoAlbum = listPhotoAlbumUiState.value
 
-    LazyVerticalGrid(
-        state = scrollViewState,
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White),
-        columns = GridCells.Adaptive(minSize = 128.dp),
-        verticalArrangement = Arrangement.spacedBy(1.dp),
-        horizontalArrangement = Arrangement.spacedBy(1.dp)
-    ) {
-        items(listPhotoAlbum.albums, itemContent = { item ->
-            Box(
-                modifier = Modifier
-                    .width(250.dp)
-                    .height(250.dp)
-                    .background(Color.Black)
-                    .clickable {
-                        coroutineScope.launch {
-                            eventFlow.emit(ListPhotoAlbumEvents.SelectAlbum(item.id))
+    if(listPhotoAlbum.albums.isNotEmpty()) {
+        LazyVerticalGrid(
+            state = scrollViewState,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White),
+            columns = GridCells.Adaptive(minSize = 128.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+            horizontalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            items(listPhotoAlbum.albums, itemContent = { item ->
+                Box(
+                    modifier = Modifier
+                        .width(250.dp)
+                        .height(250.dp)
+                        .background(Color.Black)
+                        .clickable {
+                            coroutineScope.launch {
+                                eventFlow.emit(ListPhotoAlbumEvents.SelectAlbum(item.id))
+                            }
                         }
-                    }
-            ) {
-                SubcomposeAsyncImage(
-                    model = item.url,
-                    modifier = Modifier.fillMaxSize(),
-                    loading = {
-                        CircularProgressIndicator()
-                    },
-                    onError = {
-                        val sdfasdfsda = ""
-                    },
-                    contentDescription = "stringResource(R.string.description)"
-                )
+                ) {
+                    SubcomposeAsyncImage(
+                        model = item.request,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {
+                            CircularProgressIndicator()
+                        },
+                        onError = {
+                            val sdfasdfsda = ""
+                        },
+                        contentDescription = "stringResource(R.string.description)"
+                    )
 
-                if (item.isSelected) {
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_launcher_background),
-                        contentDescription = null,
+                    if (item.isSelected) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_launcher_background),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .clip(CircleShape)
+                                .align(Alignment.TopEnd)
+                                .width(34.dp)
+                                .height(34.dp)
+                                .border(1.dp, Color.Gray, CircleShape)
+                        )
+                    }
+
+                    Text(
                         modifier = Modifier
-                            .padding(8.dp)
-                            .clip(CircleShape)
-                            .align(Alignment.TopEnd)
-                            .width(34.dp)
-                            .height(34.dp)
-                            .border(1.dp, Color.Gray, CircleShape)
+                            .align(Alignment.BottomStart)
+                            .background(color = Color.White.copy(alpha = 0.33f)),
+                        text = item.title,
                     )
                 }
-
-                Text(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .background(color = Color.White.copy(alpha = 0.33f)),
-                    text = item.title,
-                )
-            }
-        })
+            })
+        }
     }
 }
 
@@ -222,12 +237,14 @@ fun DefaultPreview() {
                 "https://images.unsplash.com/photo-1554080353-a576cf803bda?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OXx8cGhvdG9ncmFwaHl8ZW58MHx8MHx8&w=1000&q=80",
                 "Name",
                 "id",
+                null!!,
                 true
             ),
             AlbumInfo(
                 "https://images.unsplash.com/photo-1554080353-a576cf803bda?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OXx8cGhvdG9ncmFwaHl8ZW58MHx8MHx8&w=1000&q=80",
                 "Name2",
                 "id2",
+                null!!,
                 false
             )
 

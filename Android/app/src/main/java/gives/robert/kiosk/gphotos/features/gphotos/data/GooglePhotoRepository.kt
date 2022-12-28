@@ -28,7 +28,6 @@ class GooglePhotoRepository(
     suspend fun fetchAlbums(): List<GoogleAlbum> {
         return if (connectionState == ConnectionState.Available) {
             val result = onlineGooglePhotoRepository.fetchAlbums()
-            saveSeenAlbums(result)
             return result
         } else {
             offlineGooglePhotoRepository.fetchAlbums()
@@ -43,11 +42,11 @@ class GooglePhotoRepository(
         }
     }
 
-    private suspend fun saveSeenAlbums(googleAlbums: List<GoogleAlbum>) {
-        offlineGooglePhotoRepository.saveSeenAlbums(googleAlbums)
-    }
-
     suspend fun saveSeenPhoto(mediaItem: GoogleMediaItem) {
         offlineGooglePhotoRepository.saveSeenPhoto(mediaItem)
+    }
+
+    suspend fun saveSeenAlbumList(albumList: List<GoogleAlbum>) {
+        offlineGooglePhotoRepository.updateAlbumList(albumList)
     }
 }

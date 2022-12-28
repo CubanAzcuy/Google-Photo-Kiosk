@@ -6,13 +6,15 @@ import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbum
 import gives.robert.kiosk.gphotos.features.gphotos.albumlist.data.ListPhotoAlbumUiState
 import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleAlbum
-import gives.robert.kiosk.gphotos.features.gphotos.data.models.wt.GoogleAlbumResponseWT
+import gives.robert.kiosk.gphotos.utils.extensions.toImageLoadingRequest
+import gives.robert.kiosk.gphotos.utils.providers.CoilProvider
 import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 
 @Composable
 fun GooglePhotoAlbumListPresenter(
     googleGooglePhotoRepo: GooglePhotoRepository,
     localRepo: GooglePhotoAlbumListLocalRepo,
+    coilProvider: CoilProvider,
     events: ListPhotoAlbumEvents?
 ): State<ListPhotoAlbumUiState> {
 
@@ -24,11 +26,16 @@ fun GooglePhotoAlbumListPresenter(
             ListPhotoAlbumEvents.GetAlbums -> {
                 val albumList = googleGooglePhotoRepo.fetchAlbums()
                 localRepo.setAlbumList(albumList)
-                ListPhotoAlbumUiState(localRepo.getAlbumInfos())
+                albumList.forEach {
+                    val request = it.toImageLoadingRequest(coilProvider.imageBuilder)
+                    coilProvider.imageLoader.enqueue(request)
+                }
+                googleGooglePhotoRepo.saveSeenAlbumList(albumList)
+                ListPhotoAlbumUiState(localRepo.getAlbumInfos(coilProvider))
             }
             is ListPhotoAlbumEvents.SelectAlbum -> {
                 localRepo.selectAlbum(listPhotoAlbumEvents.selectedAlbumsId)
-                ListPhotoAlbumUiState(localRepo.getAlbumInfos())
+                ListPhotoAlbumUiState(localRepo.getAlbumInfos(coilProvider))
             }
             else -> {
                 uiState.value
@@ -65,10 +72,15 @@ class GooglePhotoAlbumListLocalRepo(
         this.albumList = albumList
     }
 
-    fun getAlbumInfos(): List<AlbumInfo> {
+    fun getAlbumInfos(coilProvider: CoilProvider): List<AlbumInfo> {
         return albumList.map {
             val isSelected = selectedAlbumIds.contains(it.id)
-            AlbumInfo(it.coverPhotoUrl, it.title, it.id, isSelected)
+            AlbumInfo(
+                url = it.coverPhotoUrl,
+                title = it.title,
+                id = it.id,
+                request = it.toImageLoadingRequest(coilProvider.imageBuilder),
+                isSelected = isSelected)
         }
     }
 }

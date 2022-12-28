@@ -6,6 +6,7 @@ import gives.robert.kiosk.gphotos.utils.IdItem
 data class GoogleMediaItem(
     override val id: String,
     val baseUrl: String,
+    val fileName: String,
     val mimeType: String,
     val albumId: String
 ): IdItem

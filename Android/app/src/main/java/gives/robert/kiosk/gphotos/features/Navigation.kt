@@ -2,14 +2,13 @@ package gives.robert.kiosk.gphotos.features
 
 import android.content.Context
 import androidx.compose.runtime.*
-import gives.robert.kiosk.gphotos.SeenAlbums
-import gives.robert.kiosk.gphotos.SeenPhotos
+import gives.robert.kiosk.gphotos.Albums
+import gives.robert.kiosk.gphotos.Photos
 import gives.robert.kiosk.gphotos.utils.extensions.ConnectionState
 import gives.robert.kiosk.gphotos.utils.providers.DatabaseQueryProvider
 import gives.robert.kiosk.gphotos.utils.providers.NavigationLocations
 import gives.robert.kiosk.gphotos.utils.providers.NavigationManager
 import gives.robert.kiosk.gphotos.utils.providers.UserPreferencesRecord
-
 
 @Composable
 fun SetupNavigation(
@@ -40,8 +39,8 @@ fun SetupNavigation(
 @Composable
 fun NavigationLocation(
     connectionState: ConnectionState,
-    albumListState: State<List<SeenAlbums>>,
-    photoListState: State<List<SeenPhotos>>,
+    albumListState: State<List<Albums>>,
+    photoListState: State<List<Photos>>,
     userPrefsState: State<UserPreferencesRecord>,
     requestedLocations: NavigationManager
 ): State<NavigationLocations> {

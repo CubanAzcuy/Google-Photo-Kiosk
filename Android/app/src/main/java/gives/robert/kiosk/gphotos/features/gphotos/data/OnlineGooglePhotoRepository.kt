@@ -1,5 +1,6 @@
 package gives.robert.kiosk.gphotos.features.gphotos.data
 
+import gives.robert.kiosk.gphotos.Database
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleAlbum
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.domain.GoogleMediaItem
 import gives.robert.kiosk.gphotos.features.gphotos.data.models.wt.AlbumListResponse
@@ -15,7 +16,8 @@ import kotlinx.coroutines.withContext
 
 class OnlineGooglePhotoRepository(
     private val client: HttpClient,
-    private val userPrefs: UserPreferences
+    private val userPrefs: UserPreferences,
+    private val database: Database
 ) {
 
     private val bearerToken
@@ -26,6 +28,20 @@ class OnlineGooglePhotoRepository(
     }
 
     private suspend fun fetchPhotos(albumIds: Set<String>): List<GoogleMediaItem> {
+
+        val cachedRecords = database.photosQueries.selectAll().executeAsList()
+        if(!userPrefs.userPreferencesRecord.shouldFetch && cachedRecords.isNotEmpty()) {
+            return cachedRecords.map {
+                GoogleMediaItem(
+                    id = it.id,
+                    baseUrl = it.url,
+                    mimeType = it.mime_type,
+                    albumId = it.album_id,
+                    fileName = it.file_name
+                )
+            }
+        }
+
         val mediaList = mutableListOf<GoogleMediaItem>()
         albumIds.forEach { albumId ->
             try {
@@ -40,6 +56,20 @@ class OnlineGooglePhotoRepository(
                 val ex = ex
             }
         }
+
+        database.transaction {
+            mediaList.forEach {
+                database.photosQueries.insert(
+                    id = it.id,
+                    album_id = it.albumId,
+                    url = it.baseUrl,
+                    file_name = it.fileName,
+                    mime_type = it.mimeType,
+                    downloaded = false
+                )
+            }
+        }
+
         return mediaList
     }
 
@@ -50,22 +80,47 @@ class OnlineGooglePhotoRepository(
         it.baseUrl != null
     }.map { googleMediaItem ->
         GoogleMediaItem(
-            googleMediaItem.id,
-            "${googleMediaItem.baseUrl}=d",
-            googleMediaItem.mimeType,
-            albumId
+            id = googleMediaItem.id,
+            baseUrl = "${googleMediaItem.baseUrl}=d",
+            mimeType = googleMediaItem.mimeType.replace("image/", ""),
+            albumId = albumId,
+            fileName = googleMediaItem.filename
         )
     }
 
     suspend fun fetchAlbums(): List<GoogleAlbum> {
         return withContext(Dispatchers.IO) {
+            val cachedRecords = database.albumsQueries.selectAll().executeAsList()
+            if(!userPrefs.userPreferencesRecord.shouldFetch && cachedRecords.isNotEmpty()) {
+                return@withContext cachedRecords.map {
+                    GoogleAlbum(
+                        id = it.id,
+                        coverPhotoUrl = it.cover_photo_url,
+                        title = it.title,
+                    )
+                }
+            }
+
             try {
                 val response = client.get<AlbumListResponse>("$googlePhotosV1UrlString/albums") {
                     authorizeHttpRequestBuilder(this, bearerToken)
                 }
-                response.albums.map {
+                val albums = response.albums.map {
                     GoogleAlbum(it.id, "${it.coverPhotoBaseUrl}=d", it.title)
                 }
+
+                database.transaction {
+                    albums.forEach {
+                        database.albumsQueries.insert(
+                            id = it.id,
+                            cover_photo_url = it.coverPhotoUrl,
+                            title = it.title,
+                            downloaded = false
+                        )
+                    }
+                }
+
+                albums
             } catch (clientException: ClientRequestException) {
                 val exceptionResponse = clientException.response
                 if (exceptionResponse.status == HttpStatusCode.Unauthorized ||
