@@ -56,6 +56,9 @@ class GooglePhotoDisplayLocalRepo(
 
     private fun requestNextPhotoToDisplayForLargerList() {
         if (currentlyDisplayPhotoIndex < activelyDisplayedPhotos.size) return
+        if (currentlyDisplayPhotoIndex >= activelyDisplayedPhotos.size) {
+            currentlyDisplayPhotoIndex = activelyDisplayedPhotos.size -1
+        }
 
         var item = itemHolderRandom.nextRandomItem()
         item = if (item == null) {

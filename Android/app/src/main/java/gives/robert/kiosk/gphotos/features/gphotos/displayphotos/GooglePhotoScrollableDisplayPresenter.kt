@@ -5,7 +5,6 @@ import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPho
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosEffect
 import gives.robert.kiosk.gphotos.features.gphotos.displayphotos.data.DisplayPhotosUiState
 import gives.robert.kiosk.gphotos.utils.BasePresenter
-import gives.robert.kiosk.gphotos.utils.extensions.toImageLoadingRequest
 import gives.robert.kiosk.gphotos.utils.providers.CoilProvider
 import gives.robert.kiosk.gphotos.utils.providers.UserPreferences
 import kotlinx.coroutines.*
@@ -23,6 +22,7 @@ class GooglePhotoScrollableDisplayPresenter(
         get() = DisplayPhotosUiState()
 
     private val infiniteScope = CoroutineScope(Dispatchers.IO)
+    private var lastRequestedKey: String? = null
     private var job: Job? = null
 
     init {
@@ -50,6 +50,10 @@ class GooglePhotoScrollableDisplayPresenter(
                 userPrefs.clearAuthToken()
             }
             else -> {
+                println("-----------------------------------------")
+                println("-------------Cancel-Timer----------------")
+                println("-----------------------------------------")
+
                 job?.cancel()
             }
         }
@@ -58,9 +62,10 @@ class GooglePhotoScrollableDisplayPresenter(
     private suspend fun buildPhotoList() {
         val photoDataList = googleGooglePhotoRepo.fetchPhotos()
         localRepo.setPhotoList(photoDataList)
-        photoDataList.forEach {
-            val request = it.toImageLoadingRequest(coilProvider.imageBuilder)
-            coilProvider.imageLoader.enqueue(request)
+        val onscreenPhotos = localRepo.getOnScreenPhotosForDisplay()
+
+        onscreenPhotos.forEach {
+            coilProvider.imageLoader.enqueue(it.request)
         }
 
         stateFlow.update {
@@ -68,17 +73,32 @@ class GooglePhotoScrollableDisplayPresenter(
         }
     }
 
-    private suspend fun onScrollDone(currentIndex: Int) {
-        localRepo.setCurrentlyDisplayPhotoIndex(currentIndex)
-        val mediaItem = localRepo.getOnScreenPhotosForProcessing()[currentIndex]
-        googleGooglePhotoRepo.saveSeenPhoto(mediaItem)
+    private suspend fun onScrollDone(currentlyDisplayedIndex: Int) {
+
+        val requestedKey = localRepo.getOnScreenPhotosForDisplay()[currentlyDisplayedIndex].id
+
+        if (lastRequestedKey == requestedKey && job?.isCancelled == false) {
+            return
+        }
+
+        lastRequestedKey = requestedKey
+        localRepo.setCurrentlyDisplayPhotoIndex(currentlyDisplayedIndex)
 
         job?.cancel()
         job = infiniteScope.launch {
+            println("-----------------------------------------")
+            println("--------------Start-Timer----------------")
+            println("-----------------------------------------")
             delay(TimeUnit.SECONDS.toMillis(25))
+            println("-----------------------------------------")
+            println("---------------End-Timer-----------------")
+            println("-----------------------------------------")
+
             localRepo.prepareListForNextPhotoToDisplay()
             val photoToDisplay = localRepo.getOnScreenPhotosForDisplay()
-            val indexToRender =  localRepo.getCurrentlyDisplayPhotoIndex()
+            val indexToRender = localRepo.getCurrentlyDisplayPhotoIndex()
+
+            googleGooglePhotoRepo.saveSeenPhoto(localRepo.getOnScreenPhotosForProcessing()[indexToRender])
             coilProvider.imageLoader.enqueue(photoToDisplay[indexToRender].request)
 
             stateFlow.update {

@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import coil.Coil
 import coil.compose.SubcomposeAsyncImage
 import coil.imageLoader
+import coil.request.ErrorResult
 import coil.request.ImageRequest
 import gives.robert.kiosk.gphotos.features.gphotos.data.GooglePhotoRepository
 import gives.robert.kiosk.gphotos.features.gphotos.data.OfflineGooglePhotosRepository
@@ -57,7 +58,10 @@ fun SetupGooglePhotoScrollableView(
         )
     }
 
-    presenter.processEvent(DisplayPhotoEvents.GetPhotos)
+    LaunchedEffect(Unit) {
+        presenter.processEvent(DisplayPhotoEvents.GetPhotos)
+    }
+
     val radsfasdf = presenter.stateFlow.collectAsState(initial = DisplayPhotosUiState())
     GooglePhotoScrollableDisplayView(
         radsfasdf,
@@ -121,6 +125,7 @@ fun GooglePhotoScrollableDisplayView(
                         val asdf = ""
                     },
                     onError = {
+                        val estuasrf: ErrorResult = it.result
                         onAuthLost()
                     },
                     contentDescription = "stringResource(R.string.description)"

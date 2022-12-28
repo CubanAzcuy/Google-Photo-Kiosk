@@ -42,7 +42,7 @@ fun Context.defaultImageLoader(): ImageLoader {
         return imageLoader!!
     }
 
-    val lruCache = LruCache<String, Drawable>(10)
+    val lruCache = LruCache<String, Drawable>(25)
     val imageLoader2 = ImageLoader.Builder(this)
         .components {
             add(
